@@ -1,1 +1,1 @@
-{"version":3,"file":"super_admin.route.js","sourceRoot":"","sources":["../../../src/module/super_admin/super_admin.route.ts"],"names":[],"mappings":""}
+{"version":3,"file":"super_admin.route.js","sourceRoot":"","sources":["../../../src/module/super_admin/super_admin.route.ts"],"names":[],"mappings":";;;;;;AAAA,sDAA8B;AAC9B,yDAAsD;AACtD,qEAA4D;AAC5D,MAAM,MAAM,GAAG,iBAAO,CAAC,MAAM,EAAE,CAAC;AAEhC,MAAM,CAAC,IAAI,CAAC,UAAU,EAAE,IAAA,mBAAQ,EAAC,EAAE,IAAI,EAAE,yCAAgB,EAAE,CAAC,CAAC,CAAC;AACjD,QAAA,eAAe,GAAG,MAAM,CAAC"}
