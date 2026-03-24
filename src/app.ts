@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import { SuperAdminRoute } from "./module/super_admin/super_admin.route";
+import { globalErrorHandler, notFoundHandler } from "./middlewares/ErrorHandler";
 
 // routes
 // import authRoutes from './modules/auth/auth.routes';
@@ -34,6 +35,11 @@ app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "Server is running" });
 });
 
+// ─── 404 — must come after all routes ────────────────────
+app.use(notFoundHandler);
+
+// ─── Global error handler — must be last, needs 4 params ─
+app.use(globalErrorHandler);
 export default app;
 // ✅ No listen() here
 // ✅ No connectDB() here

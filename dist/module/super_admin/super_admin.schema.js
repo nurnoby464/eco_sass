@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = require("mongoose");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const session_schema_1 = __importDefault(require("../model/schema/session.schema"));
 const UserSchema = new mongoose_1.Schema({
     name: {
         type: String,
@@ -25,7 +26,7 @@ const UserSchema = new mongoose_1.Schema({
         type: String,
         required: [true, "Password is required"],
         minlength: [8, "Password must be at least 8 characters"],
-        select: false, // never returned in queries by default
+        select: false,
     },
     role: {
         type: String,
@@ -62,22 +63,40 @@ const UserSchema = new mongoose_1.Schema({
     reset_token: { type: String, default: null, select: false },
     reset_token_exp: { type: Date, default: null, select: false },
 }, {
-    timestamps: true, // adds createdAt and updatedAt automatically
+    timestamps: true,
 });
 // ─── Indexes ─────────────────────────────────────────────
-UserSchema.index({ email: 1 }); // unique login lookup
-UserSchema.index({ company_id: 1, role: 1 }); // list users by company + role
-UserSchema.index({ createdBy: 1 }); // who created this user
+UserSchema.index({ email: 1 });
+UserSchema.index({ company_id: 1, role: 1 });
+UserSchema.index({ createdBy: 1 });
+// ─── Virtual: sessions ────────────────────────────────────
+// Lets you do user.populate("sessions") to get all sessions for this user.
+// No data is stored on the User document itself.
+UserSchema.virtual("sessions", {
+    ref: "Session",
+    localField: "_id",
+    foreignField: "userId",
+});
+// ─── Pre-save: hash password ──────────────────────────────
 UserSchema.pre("save", async function () {
     if (!this.isModified("password"))
         return;
     const salt = await bcryptjs_1.default.genSalt(12);
     this.password = await bcryptjs_1.default.hash(this.password, salt);
 });
+// ─── Method: compare password ─────────────────────────────
 UserSchema.methods.comparePassword = async function (plainPassword) {
     return bcryptjs_1.default.compare(plainPassword, this.password);
 };
+// ─── Method: invalidate all sessions ─────────────────────
+// Call this on logout-all or password change to kill every active session.
+UserSchema.methods.clearSessions = async function () {
+    // const Session = (await import("./session.schema")).default;
+    await session_schema_1.default.updateMany({ userId: this._id, valid: true }, { valid: false });
+};
+// ─── toJSON: strip sensitive fields ──────────────────────
 UserSchema.set("toJSON", {
+    virtuals: false, // don't expose sessions array by default in JSON
     transform: (_doc, ret) => {
         const obj = ret;
         delete obj.password;

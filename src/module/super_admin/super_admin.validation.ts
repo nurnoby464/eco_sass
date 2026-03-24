@@ -1,4 +1,4 @@
-import z, { email } from "zod";
+import { z } from "zod";
 
 export const createUserSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters"),
@@ -25,3 +25,6 @@ export const createUserSchema = z.object({
     .optional()
     .nullable(),
 });
+
+// ─── Derive the type from the schema ─────────────────────
+export type CreateUserInput = z.infer<typeof createUserSchema>;

@@ -9,6 +9,7 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const morgan_1 = __importDefault(require("morgan"));
 const super_admin_route_1 = require("./module/super_admin/super_admin.route");
+const ErrorHandler_1 = require("./middlewares/ErrorHandler");
 // routes
 // import authRoutes from './modules/auth/auth.routes';
 // import adminRoutes from './modules/admin/admin.routes';
@@ -33,6 +34,10 @@ app.use("/api/v1/super-admin", super_admin_route_1.SuperAdminRoute);
 app.get("/api/health", (req, res) => {
     res.json({ success: true, message: "Server is running" });
 });
+// ─── 404 — must come after all routes ────────────────────
+app.use(ErrorHandler_1.notFoundHandler);
+// ─── Global error handler — must be last, needs 4 params ─
+app.use(ErrorHandler_1.globalErrorHandler);
 exports.default = app;
 // ✅ No listen() here
 // ✅ No connectDB() here

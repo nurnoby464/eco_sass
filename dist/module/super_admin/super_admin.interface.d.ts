@@ -16,5 +16,6 @@ export interface IUser {
 }
 export interface IUserDocument extends IUser, Document {
     comparePassword(candidatePassword: string): Promise<boolean>;
+    clearSessions(): Promise<void>;
 }
 //# sourceMappingURL=super_admin.interface.d.ts.map

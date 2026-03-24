@@ -1,4 +1,4 @@
-import z from "zod";
+import { z } from "zod";
 export declare const createUserSchema: z.ZodObject<{
     name: z.ZodString;
     email: z.ZodString;
@@ -16,4 +16,5 @@ export declare const createUserSchema: z.ZodObject<{
     is_active: z.ZodOptional<z.ZodBoolean>;
     createdBy: z.ZodNullable<z.ZodOptional<z.ZodString>>;
 }, z.core.$strip>;
+export type CreateUserInput = z.infer<typeof createUserSchema>;
 //# sourceMappingURL=super_admin.validation.d.ts.map
