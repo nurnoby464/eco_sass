@@ -1,21 +1,5 @@
-import mongoose, { Document, Schema, Model, model } from "mongoose";
-
-export interface ICompany {
-  company_name: string;
-  company_email: string;
-  phone: string;
-  address: string;
-  logo: string | null;
-  domain: string | null; // ← new
-  subdomain: string | null; // ← new
-  status: "active" | "inactive" | "suspended";
-  admin_id: mongoose.Types.ObjectId;
-  createdBy: mongoose.Types.ObjectId;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ICompanyDocument extends ICompany, Document {}
+import { Schema, model } from "mongoose";
+import { ICompanyDocument } from "./company.interface";
 
 const CompanySchema = new Schema<ICompanyDocument>(
   {
@@ -106,10 +90,7 @@ const CompanySchema = new Schema<ICompanyDocument>(
 );
 
 // ─── Indexes ──────────────────────────────────────────────
-CompanySchema.index({ company_email: 1 }); // unique company lookup
 CompanySchema.index({ status: 1 }); // filter by status
-CompanySchema.index({ domain: 1 }, { sparse: true }); // ← new
-CompanySchema.index({ subdomain: 1 }, { sparse: true }); // ← new
 
 const Company = model<ICompanyDocument>("Company", CompanySchema);
 

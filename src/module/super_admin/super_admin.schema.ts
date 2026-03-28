@@ -1,7 +1,7 @@
 import { model, Schema } from "mongoose";
 import { IUserDocument } from "./super_admin.interface";
-import bcrypt from "bcryptjs";
-import Session from "../model/schema/session.schema";
+import bcrypt from "bcryptjs"
+import Session from "../auth/auth.schema";
 
 const UserSchema = new Schema<IUserDocument>(
   {
@@ -74,7 +74,6 @@ const UserSchema = new Schema<IUserDocument>(
 );
 
 // ─── Indexes ─────────────────────────────────────────────
-UserSchema.index({ email: 1 });
 UserSchema.index({ company_id: 1, role: 1 });
 UserSchema.index({ createdBy: 1 });
 

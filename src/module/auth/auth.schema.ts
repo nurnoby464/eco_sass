@@ -1,5 +1,6 @@
 import { model, Schema } from "mongoose";
-import { ISessionDocument } from "../interface/session.interface";
+import { ISessionDocument } from "./auth.interface";
+import z from "zod";
 
 const SessionSchema = new Schema<ISessionDocument>(
   {
@@ -33,7 +34,17 @@ const SessionSchema = new Schema<ISessionDocument>(
 
 // ─── Indexes ─────────────────────────────────────────────
 SessionSchema.index({ userId: 1, valid: 1 }); // fast lookup: active sessions for a user
-SessionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 30 }); // TTL — auto-delete after 30 days
+SessionSchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: 60 * 60 * 24 * 30 },
+); // TTL — auto-delete after 30 days
 
 const Session = model<ISessionDocument>("Session", SessionSchema);
 export default Session;
+
+export const loginSchema = z.object({
+  email: z.email("Give a valid email").trim().toLowerCase(),
+  password: z
+    .string({ error: "Password is required" })
+    .min(8, "Password must be at least 8 characters"),
+});

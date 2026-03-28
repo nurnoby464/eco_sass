@@ -1,19 +1,19 @@
-import { Request, Response } from 'express';
-import { asyncHandler } from '../../utils/asyncHandler';
-import { UserService } from './super_admin.service';
-import { ApiResponse } from '../../utils/ApiResponse';
-import { AppError } from '../../middlewares/appError';
+import { Request, Response } from "express";
+import { asyncHandler } from "../../utils/asyncHandler";
+import { UserService } from "./super_admin.service";
+import { ApiResponse } from "../../utils/ApiResponse";
+import { AppError } from "../../middlewares/appError";
 
 // ─── POST /users ──────────────────────────────────────────
 const create = asyncHandler(async (req: Request, res: Response) => {
   const user = await UserService.createUser(req.body, req.user?._id ?? null);
 
-  return ApiResponse.created(res, user, 'User created successfully');
+  return ApiResponse.created(res, user, "User created successfully");
 });
 
 // ─── GET /users/:id ───────────────────────────────────────
 const getById = asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id as string
+  const id = req.params.id as string;
   const user = await UserService.getUserById(id);
 
   return ApiResponse.success(res, user);
@@ -28,24 +28,34 @@ const list = asyncHandler(async (req: Request, res: Response) => {
 
 // ─── DELETE /users/:id ────────────────────────────────────
 const remove = asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id as string
+  const id = req.params.id as string;
   const requestor = req.user!;
 
-  if (requestor.role !== 'super_admin' && requestor.role !== 'admin') {
-    throw new AppError('You do not have permission to delete users', 403);
+  if (requestor.role !== "super_admin" && requestor.role !== "admin") {
+    throw new AppError("You do not have permission to delete users", 403);
   }
 
   await UserService.deleteUser(id, requestor);
 
-  return ApiResponse.success(res, null, 'User deleted successfully');
+  return ApiResponse.success(res, null, "User deleted successfully");
 });
 
 // ─── PATCH /users/:id/status ──────────────────────────────
 const toggleStatus = asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id as string
+  const id = req.params.id as string;
   const user = await UserService.toggleUserStatus(id, req.user!);
 
-  return ApiResponse.success(res, user, 'User status updated');
+  return ApiResponse.success(res, user, "User status updated");
+});
+// create company
+
+const createCompany = asyncHandler(async (req: Request, res: Response) => {
+  const company = await UserService.createCompany(
+    req.body,
+    req.user._id ?? null,
+  );
+
+  return ApiResponse.created(res, company, "Company created successfully");
 });
 
 export const UserController = {
@@ -54,4 +64,5 @@ export const UserController = {
   list,
   remove,
   toggleStatus,
+  createCompany
 };

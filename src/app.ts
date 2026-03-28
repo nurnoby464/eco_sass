@@ -4,7 +4,12 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import { SuperAdminRoute } from "./module/super_admin/super_admin.route";
-import { globalErrorHandler, notFoundHandler } from "./middlewares/ErrorHandler";
+import {
+  globalErrorHandler,
+  notFoundHandler,
+} from "./middlewares/ErrorHandler";
+import { AuthRoutes } from "./module/auth/auth.route";
+import cookieParser from "cookie-parser";
 
 // routes
 // import authRoutes from './modules/auth/auth.routes';
@@ -21,9 +26,10 @@ app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Routes
-// app.use('/api/auth',     authRoutes);
+app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/super-admin", SuperAdminRoute);
 // app.use('/api/admin',    adminRoutes);
 // app.use('/api/vendor',   vendorRoutes);

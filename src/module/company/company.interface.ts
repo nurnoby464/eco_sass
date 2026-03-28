@@ -1,0 +1,18 @@
+import mongoose, { Document } from "mongoose";
+
+export interface ICompany {
+  company_name: string;
+  company_email: string;
+  phone: string;
+  address: string;
+  logo: string | null;
+  domain: string | null; // ← new
+  subdomain: string | null; // ← new
+  status: "active" | "inactive" | "suspended";
+  admin_id: mongoose.Types.ObjectId;
+  createdBy: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ICompanyDocument extends ICompany, Document {}
