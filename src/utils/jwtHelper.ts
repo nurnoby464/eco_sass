@@ -26,8 +26,8 @@ const generateToken = (payload: IGenerateToken): string => {
     expiresIn: payload.expiresIn,
   });
 };
-const verifyToken = (payload: IVerifyToken) => {
-  return jwt.verify(payload.token, payload.secret);
+const verifyToken = (payload: IVerifyToken) : ITokenPayload => {
+  return jwt.verify(payload.token, payload.secret) as ITokenPayload;
 };
 
 export const JwtHelper = {

@@ -35,7 +35,7 @@ const SessionSchema = new Schema<ISessionDocument>(
 // ─── Indexes ─────────────────────────────────────────────
 SessionSchema.index({ userId: 1, valid: 1 }); // fast lookup: active sessions for a user
 SessionSchema.index(
-  { createdAt: 1 },
+  { updatedAt: 1 },
   { expireAfterSeconds: 60 * 60 * 24 * 30 },
 ); // TTL — auto-delete after 30 days
 

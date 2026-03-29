@@ -37,8 +37,15 @@ const refresh = asyncHandler(async (req: Request, res: Response) => {
   return ApiResponse.success(res, result, "Token refreshed");
 });
 
+const removeSession = asyncHandler(async (req: Request, res: Response) => {
+  const { sessionId, userId } = req.params;
+  await AuthServices.removeSession(sessionId as string, userId as string);
+  return ApiResponse.success(res, null, "Session removed. You can now log in.");
+});
+
 export const AuthController = {
   login,
   logout,
   refresh,
+  removeSession,
 };
