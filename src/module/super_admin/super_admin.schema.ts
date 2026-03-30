@@ -1,6 +1,6 @@
 import { model, Schema } from "mongoose";
 import { IUserDocument } from "./super_admin.interface";
-import bcrypt from "bcryptjs"
+import bcrypt from "bcryptjs";
 import Session from "../auth/auth.schema";
 
 const UserSchema = new Schema<IUserDocument>(
@@ -26,6 +26,11 @@ const UserSchema = new Schema<IUserDocument>(
       type: String,
       required: [true, "Password is required"],
       minlength: [8, "Password must be at least 8 characters"],
+      select: false,
+    },
+    passwordChangedAt: {
+      type: Date,
+      default: null,
       select: false,
     },
 

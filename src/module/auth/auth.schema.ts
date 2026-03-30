@@ -48,3 +48,25 @@ export const loginSchema = z.object({
     .string({ error: "Password is required" })
     .min(8, "Password must be at least 8 characters"),
 });
+
+export const updatePasswordSchema = z.object({
+  oldPassword: z
+    .string({ error: "Password is required" })
+    .min(8, "Password must be at least 8 characters"),
+  newPassword: z
+    .string({ error: "Password is required" })
+    .min(8, "Password must be at least 8 characters")
+    // .regex(
+    //   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/,
+    //   "Password must contain uppercase, lowercase, number and special character",
+    // ),
+});
+
+const objectIdSchema = z
+  .string()
+  .regex(/^[0-9a-fA-F]{24}$/, "Invalid id format");
+
+export const sessionParamsSchema = z.object({
+  userId    : objectIdSchema,
+  sessionId : objectIdSchema,
+});

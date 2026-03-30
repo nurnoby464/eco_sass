@@ -9,7 +9,7 @@ export interface ICompany {
   domain: string | null; // ← new
   subdomain: string | null; // ← new
   status: "active" | "inactive" | "suspended";
-  admin_id: mongoose.Types.ObjectId;
+  admin_id: mongoose.Types.ObjectId | null;
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;

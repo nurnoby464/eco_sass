@@ -5,10 +5,16 @@ import {
   createUserSchema,
 } from "./super_admin.validation";
 import { UserController } from "./super_admin.controller";
+import {
+  authenticate,
+  verifySession,
+} from "../../middlewares/AuthenticateHelper";
+import { guard } from "../../middlewares/guard";
 const router = express.Router();
-
+router.use(authenticate);
+router.use(verifySession);
 router.post(
-  "/company",
+  "/company", guard("super_admin"),
   validate({ body: createCompanyWithAdminSchema }),
   UserController.createCompany,
 );
@@ -16,15 +22,15 @@ router.post(
 router.post("/", validate({ body: createUserSchema }), UserController.create);
 
 // ─── GET /users ───────────────────────────────────────────
-router.get("/", UserController.list);
+router.get("/",guard("super_admin","admin"), UserController.list);
 
 // ─── GET /users/:id ───────────────────────────────────────
-router.get("/:id", UserController.getById);
+router.get("/:id",guard("super_admin","admin"), UserController.getById);
 
 // ─── DELETE /users/:id ────────────────────────────────────
-router.delete("/:id", UserController.remove);
+router.delete("/:id",guard("super_admin","admin"), UserController.remove);
 
 // ─── PATCH /users/:id/status ──────────────────────────────
-router.patch("/:id/status", UserController.toggleStatus);
+router.patch("/:id/status",guard("super_admin","admin"), UserController.toggleStatus);
 
 export const SuperAdminRoute = router;

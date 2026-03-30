@@ -52,7 +52,7 @@ const toggleStatus = asyncHandler(async (req: Request, res: Response) => {
 const createCompany = asyncHandler(async (req: Request, res: Response) => {
   const company = await UserService.createCompany(
     req.body,
-    req.user._id ?? null,
+    req,
   );
 
   return ApiResponse.created(res, company, "Company created successfully");

@@ -43,9 +43,21 @@ const removeSession = asyncHandler(async (req: Request, res: Response) => {
   return ApiResponse.success(res, null, "Session removed. You can now log in.");
 });
 
+const updatePassword = asyncHandler(async (req: Request, res: Response) => {
+  const { oldPassword, newPassword } = req.body;
+  const result = await AuthServices.updatePassword({
+    oldPassword,
+    newPassword,
+    userId: req.user._id.toString(),
+    sessionId: req.user.sessionId,
+  });
+  return ApiResponse.success(res, null, result.message);
+});
+
 export const AuthController = {
   login,
   logout,
   refresh,
   removeSession,
+  updatePassword,
 };

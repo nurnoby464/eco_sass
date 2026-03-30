@@ -16,6 +16,12 @@ interface ILogin {
   email: string;
   password: string;
 }
+interface IUpdatePassword {
+  oldPassword: string;
+  newPassword: string;
+  userId: string;
+  sessionId: string;
+}
 const login = async (payload: ILogin, req: Request) => {
   const MAX_SESSIONS = 5;
   const { email, password } = payload;
@@ -83,6 +89,7 @@ const login = async (payload: ILogin, req: Request) => {
     role: existing.role,
     company_id: existing.company_id ?? null,
     sessionId: session._id.toString(),
+    passwordChangedAt: existing.passwordChangedAt?.getTime() ?? null
   };
   const accessToken = await JwtHelper.generateToken({
     data,
@@ -137,7 +144,6 @@ const refresh = async (refreshToken: string) => {
   } catch {
     throw new AppError("Invalid or expired refresh token", 401);
   }
-
   // 2. find session
   const session = await Session.findById(decoded.sessionId);
   if (!session || !session.valid) {
@@ -159,6 +165,7 @@ const refresh = async (refreshToken: string) => {
       name: user.name,
       role: user.role,
       company_id: user.company_id ?? null,
+      passwordChangedAt: user.passwordChangedAt?.getTime() ?? null
     },
     secret: jwtConfig.access.secret,
     expiresIn: jwtConfig.access.expiresIn,
@@ -174,9 +181,41 @@ const removeSession = async (sessionId: string, userId: string) => {
   if (!session) throw new AppError("Session not found", 404);
 };
 
+const updatePassword = async (payload: IUpdatePassword) => {
+  const { userId, sessionId, oldPassword, newPassword } = payload;
+  const user = await User.findOne({
+    _id: new Types.ObjectId(userId),
+    is_active: true,
+  }).select("+password");
+  if (!user) throw new AppError("User not found", 404);
+  // check old password
+  const isMatch = await user.comparePassword(oldPassword);
+  if (!isMatch) throw new AppError("Old password is incorrect", 400);
+  // check new password is same as old password
+  const isSame = await user.comparePassword(newPassword);
+  if (isSame) {
+    throw new AppError("New password must be different from old password", 400);
+  }
+
+  // update password
+
+  user.password = newPassword;
+  user.passwordChangedAt = new Date();
+  await user.save();
+
+  await Session.deleteMany({
+    userId: user._id,
+    _id: { $ne: new Types.ObjectId(sessionId) },
+  });
+  return {
+    message: "Password updated. All other sessions have been logged out.",
+  };
+};
+
 export const AuthServices = {
   login,
   logout,
   refresh,
   removeSession,
+  updatePassword,
 };

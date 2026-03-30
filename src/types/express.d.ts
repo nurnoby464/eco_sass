@@ -1,9 +1,21 @@
-import { IUserDocument } from '../models/super_admin.interface';
+import mongoose from "mongoose";
 
+// ─── Extend Express Request ───────────────────────────────
 declare global {
   namespace Express {
     interface Request {
-      user?: IUserDocument;
+      user: {
+        _id: mongoose.Types.ObjectId;
+        email: string;
+        name: string;
+        role: string;
+        company_id: mongoose.Types.ObjectId | null;
+        sessionId: string;
+        passwordChangedAt: number | null;
+        iat?: number; 
+        exp?: number;
+      };
     }
   }
 }
+export {};

@@ -75,7 +75,7 @@ const CompanySchema = new Schema<ICompanyDocument>(
     admin_id: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "Admin user reference is required"],
+      default : null,
     },
 
     createdBy: {

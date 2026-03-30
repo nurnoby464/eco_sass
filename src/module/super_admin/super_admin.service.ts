@@ -7,6 +7,12 @@ import {
   CreateCompanyWithAdminInput,
   CreateUserInput,
 } from "./super_admin.validation";
+import { ITokenPayload } from "../../utils/jwtHelper";
+import Company from "../company/company.schema";
+import { Request } from "express";
+import { ICompanyDocument } from "../company/company.interface";
+import { auditLog } from "../../utils/auditLogger";
+import { AUDIT_ACTIONS } from "../audit/audit.interface";
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -95,7 +101,7 @@ const listUsers = async (rawQuery: ListQuery): Promise<ListResult> => {
 // ─── deleteUser ───────────────────────────────────────────
 // super_admin  → can delete anyone
 // admin        → can only delete users inside their own company
-const deleteUser = async (id: string, requestor: IUserDocument) => {
+const deleteUser = async (id: string, requestor: ITokenPayload) => {
   assertValidObjectId(id, "user ID");
 
   const target = await User.findById(id);
@@ -124,7 +130,7 @@ const deleteUser = async (id: string, requestor: IUserDocument) => {
 
 // ─── toggleUserStatus ─────────────────────────────────────
 // Flips is_active. Same scope rules as deleteUser.
-const toggleUserStatus = async (id: string, requestor: IUserDocument) => {
+const toggleUserStatus = async (id: string, requestor: ITokenPayload) => {
   assertValidObjectId(id, "user ID");
 
   const target = await User.findById(id);
@@ -155,10 +161,181 @@ const toggleUserStatus = async (id: string, requestor: IUserDocument) => {
 
 const createCompany = async (
   payload: CreateCompanyWithAdminInput,
-  createdBy: mongoose.Types.ObjectId | null,
+  req: Request,
 ) => {
-  console.log(payload, createdBy);
+  const { company, admin } = payload;
+  const [existingCompany, existingAdmin] = await Promise.all([
+    Company.findOne({ company_email: company.company_email }),
+    User.findOne({ email: admin.email }),
+  ]);
+  if (existingCompany)
+    throw new AppError("Company email already registered", 409);
+  if (existingAdmin) throw new AppError("Admin email already registered", 409);
+
+  const session = await mongoose.startSession();
+  let newCompany: ICompanyDocument;
+  let newAdmin;
+
+  try {
+    session.startTransaction();
+    const [createdCompany] = await Company.create(
+      [
+        {
+          company_name: company.company_name,
+          company_email: company.company_email,
+          phone: company.phone,
+          address: company.address,
+          logo: company.logo ?? null,
+          domain: company.domain ?? null,
+          subdomain: company.subdomain ?? null,
+          admin_id: null,
+          createdBy: req.user._id,
+        },
+      ],
+      { session },
+    );
+    if (!createdCompany) throw new AppError("Failed to create company", 500);
+    newCompany = createdCompany;
+
+    const [createdAdmin] = await User.create(
+      [
+        {
+          name: admin.name,
+          email: admin.email,
+          password: admin.password,
+          role: "admin",
+          company_id: newCompany._id,
+          createdBy: req.user._id,
+        },
+      ],
+      { session },
+    );
+    newAdmin = createdAdmin;
+    await Company.findByIdAndUpdate(
+      newCompany._id,
+      {
+        admin_id: newAdmin?._id,
+      },
+      {
+        session,
+        new: true,
+        runValidators: true,
+      },
+    );
+    await session.commitTransaction();
+  } catch (error) {
+    await session.abortTransaction();
+    throw new AppError("Failed to create company", 404);
+  } finally {
+    await session.endSession();
+  }
+
+  auditLog({
+    req,
+    action: AUDIT_ACTIONS.COMPANY_CREATED,
+    targetModel: "Company",
+    targetId: newCompany._id,
+    after: {
+      company_name: newCompany.company_name,
+      company_email: newCompany.company_email,
+      admin_email: newAdmin?.email,
+      admin_id: newAdmin?._id,
+    },
+  });
+  return{
+    company: newCompany,
+    admin : newAdmin?.toJSON()
+  }
 };
+
+// const createCompany = async (
+//   payload : CreateCompanyWithAdminInput,
+//   req     : Request,
+// ) => {
+//   const { company, admin } = payload;
+
+//   const [existingCompany, existingAdmin] = await Promise.all([
+//     Company.findOne({ company_email: company.company_email }),
+//     User.findOne({ email: admin.email }),
+//   ]);
+
+//   if (existingCompany) throw new AppError("Company email already registered", 409);
+//   if (existingAdmin)   throw new AppError("Admin email already registered", 409);
+
+//   const session = await mongoose.startSession();
+
+//   let newCompany: ICompanyDocument;
+//   let newAdmin  : IUserDocument;
+
+//   try {
+//     session.startTransaction();
+
+//     const [createdCompany] = await Company.create(
+//       [
+//         {
+//           company_name  : company.company_name,
+//           company_email : company.company_email,
+//           phone         : company.phone,
+//           address       : company.address,
+//           logo          : company.logo      ?? null,
+//           domain        : company.domain    ?? null,
+//           subdomain     : company.subdomain ?? null,
+//           admin_id      : null,
+//           createdBy     : req.user._id,
+//         },
+//       ],
+//       { session }
+//     );
+//     newCompany = createdCompany; // ← createdCompany not createCompany
+
+//     const [createdAdmin] = await User.create(
+//       [
+//         {
+//           name       : admin.name,
+//           email      : admin.email,
+//           password   : admin.password,
+//           role       : "admin",
+//           company_id : newCompany._id,
+//           createdBy  : req.user._id,
+//         },
+//       ],
+//       { session }
+//     );
+//     newAdmin = createdAdmin;
+
+//     await Company.findByIdAndUpdate(
+//       newCompany._id,
+//       { admin_id: newAdmin._id },
+//       { session, new: true }
+//     );
+
+//     await session.commitTransaction();
+
+//   } catch (err) {
+//     await session.abortTransaction();
+//     throw err;
+//   } finally {
+//     await session.endSession();
+//   }
+
+//   auditLog({
+//     req,
+//     action      : AUDIT_ACTIONS.COMPANY_CREATED,
+//     targetModel : "Company",
+//     targetId    : newCompany._id,
+//     after: {
+//       company_name  : newCompany.company_name,
+//       company_email : newCompany.company_email,
+//       admin_email   : newAdmin.email,
+//       admin_id      : newAdmin._id,
+//     },
+//   });
+
+//   return {
+//     company : newCompany,
+//     admin   : newAdmin.toJSON(),
+//   };
+// };
 
 // ─── Export ───────────────────────────────────────────────
 
@@ -168,5 +345,5 @@ export const UserService = {
   listUsers,
   deleteUser,
   toggleUserStatus,
-  createCompany
+  createCompany,
 };

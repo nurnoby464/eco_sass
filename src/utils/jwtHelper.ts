@@ -9,6 +9,9 @@ export interface ITokenPayload {
   role: string;
   company_id: mongoose.Types.ObjectId | null;
   sessionId: string;
+  passwordChangedAt: number | null;
+  iat?: number;
+  exp?: number;
 }
 interface IGenerateToken {
   data: ITokenPayload;
@@ -26,7 +29,7 @@ const generateToken = (payload: IGenerateToken): string => {
     expiresIn: payload.expiresIn,
   });
 };
-const verifyToken = (payload: IVerifyToken) : ITokenPayload => {
+const verifyToken = (payload: IVerifyToken): ITokenPayload => {
   return jwt.verify(payload.token, payload.secret) as ITokenPayload;
 };
 

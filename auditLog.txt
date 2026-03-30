@@ -1,0 +1,371 @@
+// ✅ LOG THESE — sensitive/irreversible
+"CREATE_COMPANY"      // super_admin creates a company
+"DELETE_COMPANY"      // super_admin deletes a company
+"CREATE_USER"         // admin creates a user
+"DELETE_USER"         // admin/super_admin deletes a user
+"UPDATE_PASSWORD"     // anyone changes password
+"LOGIN"               // track login attempts (detect brute force)
+"LOGIN_FAILED"        // failed attempts
+"LOGOUT"              // session tracking
+
+// ❌ DON'T LOG THESE — too noisy, wastes storage
+"GET_USERS"           // just reading data
+"GET_COMPANY"         // just reading data
+"GET_DASHBOARD"       // just reading data
+
+
+// ─────────────────────────────────────────────────────────
+// src/module/audit/audit.interface.ts
+// ─────────────────────────────────────────────────────────
+import mongoose, { Document } from "mongoose";
+
+// ─── All possible actions ─────────────────────────────────
+export const AUDIT_ACTIONS = {
+  // Auth
+  LOGIN           : "LOGIN",
+  LOGIN_FAILED    : "LOGIN_FAILED",
+  LOGOUT          : "LOGOUT",
+  PASSWORD_CHANGED: "PASSWORD_CHANGED",
+  TOKEN_REFRESHED : "TOKEN_REFRESHED",
+
+  // Company
+  COMPANY_CREATED : "COMPANY_CREATED",
+  COMPANY_UPDATED : "COMPANY_UPDATED",
+  COMPANY_DELETED : "COMPANY_DELETED",
+
+  // User
+  USER_CREATED    : "USER_CREATED",
+  USER_UPDATED    : "USER_UPDATED",
+  USER_DELETED    : "USER_DELETED",
+  USER_ACTIVATED  : "USER_ACTIVATED",
+  USER_DEACTIVATED: "USER_DEACTIVATED",
+
+  // Session
+  SESSION_REMOVED : "SESSION_REMOVED",
+} as const;
+
+// derive union type from the object values
+export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
+
+// ─── Who performed the action ─────────────────────────────
+export interface IPerformedBy {
+  userId    : mongoose.Types.ObjectId;
+  name      : string;
+  email     : string;
+  role      : string;
+  sessionId : string;           // which device triggered this
+  ip        : string | null;
+  userAgent : string | null;
+}
+
+// ─── What was changed (before/after) ─────────────────────
+export interface IChanges {
+  before : Record<string, unknown> | null; // state before change
+  after  : Record<string, unknown> | null; // state after change
+}
+
+// ─── Main audit interface ─────────────────────────────────
+export interface IAudit {
+  performedBy : IPerformedBy;
+  action      : AuditAction;
+  status      : "success" | "failed";
+
+  // target — what was acted upon
+  targetModel : "User" | "Company" | "Session" | null;
+  targetId    : mongoose.Types.ObjectId | null;
+
+  // optional detail
+  changes     : IChanges;          // what changed (before/after)
+  reason      : string | null;     // why it failed (error message)
+
+  createdAt   : Date;
+}
+
+export interface IAuditDocument extends IAudit, Document {}
+
+
+// ─────────────────────────────────────────────────────────
+// src/module/audit/audit.schema.ts
+// ─────────────────────────────────────────────────────────
+import { Schema, model } from "mongoose";
+
+const PerformedBySchema = new Schema(
+  {
+    userId    : { type: Schema.Types.ObjectId, ref: "User", required: true },
+    name      : { type: String, required: true },
+    email     : { type: String, required: true },
+    role      : { type: String, required: true },
+    sessionId : { type: String, required: true },
+    ip        : { type: String, default: null },
+    userAgent : { type: String, default: null },
+  },
+  { _id: false } // no separate _id for sub-document
+);
+
+const ChangesSchema = new Schema(
+  {
+    before : { type: Schema.Types.Mixed, default: null },
+    after  : { type: Schema.Types.Mixed, default: null },
+  },
+  { _id: false }
+);
+
+const AuditSchema = new Schema<IAuditDocument>(
+  {
+    performedBy : { type: PerformedBySchema, required: true },
+
+    action      : {
+      type    : String,
+      enum    : Object.values(AUDIT_ACTIONS),
+      required: true,
+    },
+
+    status      : {
+      type    : String,
+      enum    : ["success", "failed"],
+      default : "success",
+    },
+
+    targetModel : {
+      type    : String,
+      enum    : ["User", "Company", "Session", null],
+      default : null,
+    },
+
+    targetId    : {
+      type    : Schema.Types.ObjectId,
+      default : null,
+    },
+
+    changes     : { type: ChangesSchema, default: () => ({ before: null, after: null }) },
+
+    reason      : { type: String, default: null }, // error message on failure
+  },
+  {
+    timestamps : { createdAt: true, updatedAt: false }, // audit logs never update
+    versionKey : false,                                 // no __v field needed
+  }
+);
+
+// ─── Indexes ──────────────────────────────────────────────
+AuditSchema.index({ "performedBy.userId" : 1, createdAt: -1 }); // user activity history
+AuditSchema.index({ "performedBy.sessionId": 1 });               // which device did what
+AuditSchema.index({ action                : 1, createdAt: -1 }); // filter by action type
+AuditSchema.index({ targetId             : 1, createdAt: -1 }); // history of one resource
+AuditSchema.index({ status               : 1 });                  // filter failed actions
+AuditSchema.index({ createdAt            : -1 });                 // latest first
+
+// ─── TTL — auto delete logs older than 1 year ─────────────
+AuditSchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: 60 * 60 * 24 * 365 }
+);
+
+const Audit = model<IAuditDocument>("Audit", AuditSchema);
+export default Audit;
+
+
+// ─────────────────────────────────────────────────────────
+// src/utils/auditLogger.ts
+// ─────────────────────────────────────────────────────────
+import { Request }          from "express";
+import mongoose             from "mongoose";
+import Audit                from "../module/audit/audit.schema";
+import { AuditAction }      from "../module/audit/audit.interface";
+
+interface IAuditParams {
+  req         : Request;
+  action      : AuditAction;
+  status?     : "success" | "failed";
+  targetModel?: "User" | "Company" | "Session";
+  targetId?   : mongoose.Types.ObjectId;
+  before?     : Record<string, unknown> | null;  // state before change
+  after?      : Record<string, unknown> | null;  // state after change
+  reason?     : string;                          // error message on failure
+}
+
+// ─── Strip sensitive fields before storing ────────────────
+const SENSITIVE_FIELDS = ["password", "reset_token", "reset_token_exp"];
+
+const sanitize = (obj: Record<string, unknown> | null) => {
+  if (!obj) return null;
+  const clean = { ...obj };
+  SENSITIVE_FIELDS.forEach((field) => delete clean[field]);
+  return clean;
+};
+
+export const auditLog = (params: IAuditParams): void => {
+  const {
+    req,
+    action,
+    status      = "success",
+    targetModel,
+    targetId,
+    before,
+    after,
+    reason,
+  } = params;
+
+  // fire and forget — never await, never block main request
+  Audit.create({
+    performedBy: {
+      userId    : req.user._id,
+      name      : req.user.name,
+      email     : req.user.email,
+      role      : req.user.role,
+      sessionId : req.user.sessionId,
+      ip        : req.ip          ?? null,
+      userAgent : req.headers["user-agent"] ?? null,
+    },
+    action,
+    status,
+    targetModel : targetModel ?? null,
+    targetId    : targetId    ?? null,
+    changes: {
+      before : sanitize(before ?? null),
+      after  : sanitize(after  ?? null),
+    },
+    reason: reason ?? null,
+  }).catch((err) => {
+    // audit failure must NEVER crash the main request
+    console.error("⚠️  Audit log failed:", err);
+  });
+};
+
+
+// ─────────────────────────────────────────────────────────
+// USAGE EXAMPLES
+// ─────────────────────────────────────────────────────────
+
+// ── 1. Company created ────────────────────────────────────
+/*
+auditLog({
+  req,
+  action      : AUDIT_ACTIONS.COMPANY_CREATED,
+  targetModel : "Company",
+  targetId    : newCompany._id,
+  after: {
+    company_name  : newCompany.company_name,
+    company_email : newCompany.company_email,
+    admin_email   : newAdmin.email,
+  },
+});
+*/
+
+// ── 2. User deleted ───────────────────────────────────────
+/*
+auditLog({
+  req,
+  action      : AUDIT_ACTIONS.USER_DELETED,
+  targetModel : "User",
+  targetId    : target._id,
+  before: {
+    name  : target.name,
+    email : target.email,
+    role  : target.role,
+  },
+  after: null,
+});
+*/
+
+// ── 3. Password changed ───────────────────────────────────
+/*
+auditLog({
+  req,
+  action      : AUDIT_ACTIONS.PASSWORD_CHANGED,
+  targetModel : "User",
+  targetId    : req.user._id,
+  // never log before/after for password changes
+});
+*/
+
+// ── 4. Failed login attempt ───────────────────────────────
+/*
+// In auth service — before req.user is set, build performedBy manually:
+await Audit.create({
+  performedBy: {
+    userId    : existingUser._id,
+    name      : existingUser.name,
+    email     : existingUser.email,
+    role      : existingUser.role,
+    sessionId : "none",
+    ip        : req.ip ?? null,
+    userAgent : req.headers["user-agent"] ?? null,
+  },
+  action  : AUDIT_ACTIONS.LOGIN_FAILED,
+  status  : "failed",
+  reason  : "Invalid password",
+});
+*/
+
+
+// ─────────────────────────────────────────────────────────
+// SAMPLE AUDIT DOCUMENTS IN MONGODB
+// ─────────────────────────────────────────────────────────
+
+/*
+── Company Created ──────────────────────────────────────────
+{
+  "performedBy": {
+    "userId"    : "69c2563c1fb22a339a09efc3",
+    "name"      : "nurnoby",
+    "email"     : "nurnoby@gmail.com",
+    "role"      : "super_admin",
+    "sessionId" : "69c7bd4602357c8e4489701d",   ← Device 1 (Chrome/Windows)
+    "ip"        : "192.168.1.1",
+    "userAgent" : "Chrome/Windows"
+  },
+  "action"      : "COMPANY_CREATED",
+  "status"      : "success",
+  "targetModel" : "Company",
+  "targetId"    : "69c8b5d0564bc833b7938b3a",
+  "changes": {
+    "before" : null,
+    "after"  : {
+      "company_name"  : "Fashion Zone",
+      "company_email" : "info@fashionzone.com.bd",
+      "admin_email"   : "john@fashionzone.com.bd"
+    }
+  },
+  "reason"    : null,
+  "createdAt" : "2026-03-30T10:00:00.000Z"
+}
+
+── User Deleted ─────────────────────────────────────────────
+{
+  "performedBy": {
+    "userId"    : "69c2563c1fb22a339a09efc3",
+    "name"      : "nurnoby",
+    "role"      : "admin",
+    "sessionId" : "69c7bd4602357c8e4489701d",
+    "ip"        : "10.0.0.1",
+    "userAgent" : "PostmanRuntime/7.51.1"
+  },
+  "action"      : "USER_DELETED",
+  "status"      : "success",
+  "targetModel" : "User",
+  "targetId"    : "69c9d4e0564bc833b7938b3b",
+  "changes": {
+    "before" : { "name": "John", "email": "john@...", "role": "sales" },
+    "after"  : null
+  },
+  "reason"    : null,
+  "createdAt" : "2026-03-30T11:00:00.000Z"
+}
+
+── Failed Login ─────────────────────────────────────────────
+{
+  "performedBy": {
+    "userId"    : "69c2563c1fb22a339a09efc3",
+    "name"      : "nurnoby",
+    "role"      : "super_admin",
+    "sessionId" : "none",
+    "ip"        : "203.0.113.5",              ← suspicious IP
+    "userAgent" : "curl/7.68.0"               ← not a browser
+  },
+  "action"  : "LOGIN_FAILED",
+  "status"  : "failed",
+  "reason"  : "Invalid password",
+  "createdAt": "2026-03-30T03:00:00.000Z"    ← 3AM attempt
+}
+*/
