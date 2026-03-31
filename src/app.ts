@@ -10,6 +10,7 @@ import {
 } from "./middlewares/ErrorHandler";
 import { AuthRoutes } from "./module/auth/auth.route";
 import cookieParser from "cookie-parser";
+import { CompanyRouter } from "./module/company/company.route";
 
 // routes
 // import authRoutes from './modules/auth/auth.routes';
@@ -31,7 +32,7 @@ app.use(cookieParser());
 // Routes
 app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/super-admin", SuperAdminRoute);
-// app.use('/api/admin',    adminRoutes);
+app.use("/api/company", CompanyRouter);
 // app.use('/api/vendor',   vendorRoutes);
 // app.use('/api/customer', customerRoutes);
 // app.use('/api/public',   publicRoutes);

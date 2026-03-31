@@ -1,6 +1,6 @@
 // src/middlewares/validate.ts
 import { Request, Response, NextFunction } from 'express';
-import { ZodSchema } from 'zod';
+import { ZodError, ZodObject, ZodSchema } from 'zod';
 import { ApiResponse } from '../utils/ApiResponse';
 import { ParsedQs } from 'qs';
 
@@ -9,6 +9,7 @@ interface ValidateSchemas {
   params?: ZodSchema;
   query? : ZodSchema;
 }
+
 
 export const validate = (schemas: ValidateSchemas) => {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -53,7 +54,7 @@ export const validate = (schemas: ValidateSchemas) => {
           })
         );
       } else {
-        req.query = result.data as ParsedQs // replace with clean validated data
+        req.validatedQuery = result.data as Record<string,unknown>
       }
     }
 

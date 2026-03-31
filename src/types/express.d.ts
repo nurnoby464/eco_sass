@@ -15,6 +15,7 @@ declare global {
         iat?: number; 
         exp?: number;
       };
+      validatedQuery : Record<string, unknown>;
     }
   }
 }

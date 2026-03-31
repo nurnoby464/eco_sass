@@ -1,4 +1,4 @@
-import z from "zod";
+import z, { email } from "zod";
 
 export const createCompanySchema = z.object({
   company_name: z
@@ -52,4 +52,80 @@ export const createCompanySchema = z.object({
     .default("active"),
 });
 
+export const createCompanyUserSchema = z.object({
+  companyId: z
+    .string()
+    .trim()
+    .regex(/^[0-9a-fA-F]{24}$/, "Invalid company id")
+    .optional(),
+
+  email: z.email("Please enter a valid email").toLowerCase().trim(),
+  phone: z
+    .string({ error: "Phone number is required" })
+    .trim()
+    .min(7, "Phone number is too short")
+    .max(20, "Phone number is too long")
+    .regex(/^\+?[0-9\s\-().]+$/, "Please enter a valid phone number"),
+  name: z
+    .string({ error: "Address is required" })
+    .trim()
+    .min(5, "Address must be at least 5 characters")
+    .max(500, "Address cannot exceed 500 characters"),
+
+  role: z.enum(["report", "sales", "inventory", "site_management", "account"], {
+    message: "Invalid role value",
+  }),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+export const companyParamsSchema = z.object({
+  id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid company id"),
+});
+
+export const companyQuerySchema = z.object({
+  page: z
+    .string()
+    .optional()
+    .transform((v) => parseInt(v ?? "1")),
+  limit: z
+    .string()
+    .optional()
+    .transform((v) => Math.min(parseInt(v ?? "10"), 200)),
+  sortBy: z.string().optional(),
+  sortOrder: z
+    .string()
+    .optional()
+    .transform((v) => (v === "asc" ? 1 : -1)),
+  search: z.string().trim().optional(),
+  status: z.enum(["active", "inactive", "suspended"]).optional(),
+});
+
+export const updateCompanySchema = z.object({
+  company_name: z.string().trim().min(2).max(200).optional(),
+  phone: z.string().trim().min(7).max(20).optional(),
+  address: z.string().trim().min(5).max(500).optional(),
+  logo: z.string().url("Logo must be a valid URL").nullable().optional(),
+  domain: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^(?!:\/\/)([a-zA-Z0-9-_]+\.)+[a-zA-Z]{2,}$/, "Invalid domain")
+    .nullable()
+    .optional(),
+  subdomain: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Subdomain can only contain lowercase letters, numbers and hyphens",
+    )
+    .min(2)
+    .max(63)
+    .nullable()
+    .optional(),
+  status: z.enum(["active", "inactive", "suspended"]).optional(),
+});
+export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>;
 export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
+export type CompanyQueryInput = z.infer<typeof companyQuerySchema>;
+export type CompanyUserInput = z.infer<typeof createCompanyUserSchema>;

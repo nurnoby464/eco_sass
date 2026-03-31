@@ -3,6 +3,7 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { UserService } from "./super_admin.service";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { AppError } from "../../middlewares/appError";
+import { CompanyQueryInput } from "../company/company.validation";
 
 // ─── POST /users ──────────────────────────────────────────
 const create = asyncHandler(async (req: Request, res: Response) => {
@@ -50,12 +51,29 @@ const toggleStatus = asyncHandler(async (req: Request, res: Response) => {
 // create company
 
 const createCompany = asyncHandler(async (req: Request, res: Response) => {
-  const company = await UserService.createCompany(
-    req.body,
-    req,
-  );
+  const company = await UserService.createCompany(req.body, req);
 
   return ApiResponse.created(res, company, "Company created successfully");
+});
+
+const getAllCompanies = asyncHandler(async (req: Request, res: Response) => {
+  const result = await UserService.getAllCompanies(req.validatedQuery as CompanyQueryInput);
+  return ApiResponse.success(res, result, "Companies fetched successfully");
+});
+
+const getCompanyById = asyncHandler(async (req: Request, res: Response) => {
+  const result = await UserService.getCompanyById(req.params.id as string, req);
+  return ApiResponse.success(res, result, "Company fetched successfully");
+});
+
+const updateCompany = asyncHandler(async (req: Request, res: Response) => {
+  const result = await UserService.updateCompany(req.params.id as string, req.body, req);
+  return ApiResponse.success(res, result, "Company updated successfully");
+});
+
+const deleteCompany = asyncHandler(async (req: Request, res: Response) => {
+  await UserService.deleteCompany(req.params.id as string, req);
+  return ApiResponse.success(res, null, "Company deleted successfully");
 });
 
 export const UserController = {
@@ -64,5 +82,9 @@ export const UserController = {
   list,
   remove,
   toggleStatus,
-  createCompany
+  createCompany,
+  getAllCompanies,
+  getCompanyById,
+  updateCompany,
+  deleteCompany,
 };

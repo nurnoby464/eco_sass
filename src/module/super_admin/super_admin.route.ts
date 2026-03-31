@@ -10,11 +10,17 @@ import {
   verifySession,
 } from "../../middlewares/AuthenticateHelper";
 import { guard } from "../../middlewares/guard";
+import {
+  companyParamsSchema,
+  companyQuerySchema,
+  updateCompanySchema,
+} from "../company/company.validation";
 const router = express.Router();
 router.use(authenticate);
 router.use(verifySession);
 router.post(
-  "/company", guard("super_admin"),
+  "/company",
+  guard("super_admin"),
   validate({ body: createCompanyWithAdminSchema }),
   UserController.createCompany,
 );
@@ -22,15 +28,45 @@ router.post(
 router.post("/", validate({ body: createUserSchema }), UserController.create);
 
 // ─── GET /users ───────────────────────────────────────────
-router.get("/",guard("super_admin","admin"), UserController.list);
+router.get(
+  "/company/",
+  guard("super_admin"), // only super_admin sees all companies
+  validate({ query: companyQuerySchema }),
+  UserController.getAllCompanies,
+);
+
+router.get(
+  "/company/:id",
+  guard("super_admin", "admin"), // super_admin sees any, admin sees own
+  validate({ params: companyParamsSchema }),
+  UserController.getCompanyById,
+);
+router.get("/", guard("super_admin", "admin"), UserController.list);
 
 // ─── GET /users/:id ───────────────────────────────────────
-router.get("/:id",guard("super_admin","admin"), UserController.getById);
+router.get("/:id", guard("super_admin", "admin"), UserController.getById);
 
 // ─── DELETE /users/:id ────────────────────────────────────
-router.delete("/:id",guard("super_admin","admin"), UserController.remove);
 
-// ─── PATCH /users/:id/status ──────────────────────────────
-router.patch("/:id/status",guard("super_admin","admin"), UserController.toggleStatus);
+router.patch(
+  "/company/:id/status",
+  guard("super_admin", "admin"),
+  UserController.toggleStatus,
+);
+
+router.patch(
+  "/company/:id",
+  guard("super_admin", "admin"), // admin can update own company only
+  validate({ params: companyParamsSchema, body: updateCompanySchema }),
+  UserController.updateCompany,
+);
+router.delete("/:id", guard("super_admin", "admin"), UserController.remove);
+
+router.delete(
+  "/company/:id",
+  guard("super_admin"), // only super_admin can delete
+  validate({ params: companyParamsSchema }),
+  UserController.deleteCompany,
+);
 
 export const SuperAdminRoute = router;

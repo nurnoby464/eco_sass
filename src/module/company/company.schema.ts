@@ -34,13 +34,13 @@ const CompanySchema = new Schema<ICompanyDocument>(
 
     logo: {
       type: String,
-      default: null,
+      // default: null,
     },
 
     // ─── new fields ──────────────────────────────────────
     domain: {
       type: String,
-      default: null,
+      // default: null,
       lowercase: true,
       trim: true,
       sparse: true, // unique but allows multiple nulls
@@ -50,7 +50,7 @@ const CompanySchema = new Schema<ICompanyDocument>(
 
     subdomain: {
       type: String,
-      default: null,
+      // default: null,
       lowercase: true,
       trim: true,
       sparse: true,
@@ -88,7 +88,6 @@ const CompanySchema = new Schema<ICompanyDocument>(
     timestamps: true,
   },
 );
-
 // ─── Indexes ──────────────────────────────────────────────
 CompanySchema.index({ status: 1 }); // filter by status
 

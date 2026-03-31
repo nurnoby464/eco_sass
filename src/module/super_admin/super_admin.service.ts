@@ -13,6 +13,12 @@ import { Request } from "express";
 import { ICompanyDocument } from "../company/company.interface";
 import { auditLog } from "../../utils/auditLogger";
 import { AUDIT_ACTIONS } from "../audit/audit.interface";
+import {
+  CompanyQueryInput,
+  UpdateCompanyInput,
+} from "../company/company.validation";
+import Session from "../auth/auth.schema";
+import { sanitizeData } from "../../utils/sanitizeData";
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -164,72 +170,87 @@ const createCompany = async (
   req: Request,
 ) => {
   const { company, admin } = payload;
+
+  // ── 1. duplicate checks in parallel ────────────────────
   const [existingCompany, existingAdmin] = await Promise.all([
-    Company.findOne({ company_email: company.company_email }),
-    User.findOne({ email: admin.email }),
+    Company.findOne({ company_email: company.company_email }).lean(), // ← lean() — no mongoose doc overhead
+    User.findOne({ email: admin.email }).lean(),
   ]);
+
   if (existingCompany)
     throw new AppError("Company email already registered", 409);
   if (existingAdmin) throw new AppError("Admin email already registered", 409);
 
+  // ── 2. pre-generate IDs ─────────────────────────────────
+  // Generate both IDs before transaction starts
+  // This lets us set admin_id on company at creation time
+  // Eliminates the extra findByIdAndUpdate inside transaction
+  const companyId = new mongoose.Types.ObjectId();
+  const adminId = new mongoose.Types.ObjectId();
+  console.log(companyId, adminId);
   const session = await mongoose.startSession();
   let newCompany: ICompanyDocument;
-  let newAdmin;
+  let newAdmin: IUserDocument;
 
   try {
     session.startTransaction();
-    const [createdCompany] = await Company.create(
-      [
-        {
-          company_name: company.company_name,
-          company_email: company.company_email,
-          phone: company.phone,
-          address: company.address,
-          logo: company.logo ?? null,
-          domain: company.domain ?? null,
-          subdomain: company.subdomain ?? null,
-          admin_id: null,
-          createdBy: req.user._id,
-        },
-      ],
-      { session },
-    );
-    if (!createdCompany) throw new AppError("Failed to create company", 500);
-    newCompany = createdCompany;
 
-    const [createdAdmin] = await User.create(
-      [
-        {
-          name: admin.name,
-          email: admin.email,
-          password: admin.password,
-          role: "admin",
-          company_id: newCompany._id,
-          createdBy: req.user._id,
-        },
-      ],
-      { session },
-    );
+    // ── 3. create BOTH in parallel ──────────────────────────
+    // company and admin have no dependency on each other now
+    // because we pre-generated the IDs
+    const [companies, admins] = await Promise.all([
+      Company.create(
+        [
+          {
+            _id: companyId,
+            company_name: company.company_name,
+            company_email: company.company_email,
+            phone: company.phone,
+            address: company.address,
+            admin_id: adminId, // ← set directly, no update needed
+            createdBy: req.user._id,
+            status: company.status,
+            ...(company.logo && { logo: company.logo }),
+            ...(company.domain && { domain: company.domain }),
+            ...(company.subdomain && { subdomain: company.subdomain }),
+          },
+        ],
+        { session },
+      ),
+      User.create(
+        [
+          {
+            _id: adminId,
+            name: admin.name,
+            email: admin.email,
+            password: admin.password,
+            role: "admin",
+            company_id: companyId, // ← set directly
+            createdBy: req.user._id,
+          },
+        ],
+        { session },
+      ),
+    ]);
+
+    const createdCompany = companies[0];
+    const createdAdmin = admins[0];
+
+    if (!createdCompany) throw new AppError("Failed to create company", 500);
+    if (!createdAdmin) throw new AppError("Failed to create admin", 500);
+
+    newCompany = createdCompany;
     newAdmin = createdAdmin;
-    await Company.findByIdAndUpdate(
-      newCompany._id,
-      {
-        admin_id: newAdmin?._id,
-      },
-      {
-        session,
-        new: true,
-        runValidators: true,
-      },
-    );
+
     await session.commitTransaction();
-  } catch (error) {
+  } catch (err) {
     await session.abortTransaction();
-    throw new AppError("Failed to create company", 404);
+    throw err;
   } finally {
     await session.endSession();
   }
 
+  // ── 4. audit log — fire and forget ─────────────────────
   auditLog({
     req,
     action: AUDIT_ACTIONS.COMPANY_CREATED,
@@ -238,106 +259,186 @@ const createCompany = async (
     after: {
       company_name: newCompany.company_name,
       company_email: newCompany.company_email,
-      admin_email: newAdmin?.email,
-      admin_id: newAdmin?._id,
+      admin_email: newAdmin.email,
+      admin_id: newAdmin._id,
     },
   });
-  return{
+
+  return {
     company: newCompany,
-    admin : newAdmin?.toJSON()
-  }
+    admin: newAdmin.toJSON(),
+  };
 };
 
-// const createCompany = async (
-//   payload : CreateCompanyWithAdminInput,
-//   req     : Request,
-// ) => {
-//   const { company, admin } = payload;
+const getAllCompanies = async (query: CompanyQueryInput) => {
+  const { page, limit, search, status, sortOrder, sortBy } = query;
+  const skip = (page - 1) * limit;
+  // ── build filter ────────────────────────────────────────
+  const filter: Record<string, unknown> = {};
+  if (status) filter.status = status;
+  if (search) {
+    filter.$or = [
+      { company_name: { $regex: search, $options: "i" } },
+      { company_email: { $regex: search, $options: "i" } },
+    ];
+  }
 
-//   const [existingCompany, existingAdmin] = await Promise.all([
-//     Company.findOne({ company_email: company.company_email }),
-//     User.findOne({ email: admin.email }),
-//   ]);
+  // ── run count + data in parallel ────────────────────────
+  const [total, companies] = await Promise.all([
+    Company.countDocuments(filter),
+    Company.find(filter)
+      .populate("admin_id", "name email") // show admin name + email
+      .skip(skip)
+      .limit(limit)
+      .sort({ [sortBy ?? "createdAt"]: sortOrder ?? -1 }) // newest first
+      .lean(),
+  ]);
 
-//   if (existingCompany) throw new AppError("Company email already registered", 409);
-//   if (existingAdmin)   throw new AppError("Admin email already registered", 409);
+  return {
+    companies,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasNext: page < Math.ceil(total / limit),
+      hasPrev: page > 1,
+    },
+  };
+};
 
-//   const session = await mongoose.startSession();
+const getCompanyById = async (companyId: string, req: Request) => {
+  const filter: Record<string, unknown> = {
+    _id: new mongoose.Types.ObjectId(companyId),
+  };
 
-//   let newCompany: ICompanyDocument;
-//   let newAdmin  : IUserDocument;
+  // admin can only see their own company
+  if (req.user.role === "admin") {
+    filter._id = req.user.company_id;
+  }
 
-//   try {
-//     session.startTransaction();
+  const company = await Company.findOne(filter)
+    .populate("admin_id", "name email role")
+    .populate("createdBy", "name email")
+    .lean();
 
-//     const [createdCompany] = await Company.create(
-//       [
-//         {
-//           company_name  : company.company_name,
-//           company_email : company.company_email,
-//           phone         : company.phone,
-//           address       : company.address,
-//           logo          : company.logo      ?? null,
-//           domain        : company.domain    ?? null,
-//           subdomain     : company.subdomain ?? null,
-//           admin_id      : null,
-//           createdBy     : req.user._id,
-//         },
-//       ],
-//       { session }
-//     );
-//     newCompany = createdCompany; // ← createdCompany not createCompany
+  if (!company) throw new AppError("Company not found", 404);
 
-//     const [createdAdmin] = await User.create(
-//       [
-//         {
-//           name       : admin.name,
-//           email      : admin.email,
-//           password   : admin.password,
-//           role       : "admin",
-//           company_id : newCompany._id,
-//           createdBy  : req.user._id,
-//         },
-//       ],
-//       { session }
-//     );
-//     newAdmin = createdAdmin;
+  return company;
+};
 
-//     await Company.findByIdAndUpdate(
-//       newCompany._id,
-//       { admin_id: newAdmin._id },
-//       { session, new: true }
-//     );
+const updateCompany = async (
+  companyId: string,
+  payload: UpdateCompanyInput,
+  req: Request,
+) => {
+  const company = await Company.findById(companyId);
+  if (!company) throw new AppError("Company not found", 404);
 
-//     await session.commitTransaction();
+  const [domainTaken, subdomainTaken] = await Promise.all([
+    payload.domain && payload.domain !== company.domain
+      ? Company.findOne({ domain: payload.domain }).lean()
+      : null,
+    payload.subdomain && payload.subdomain !== company.subdomain
+      ? Company.findOne({ subdomain: payload.subdomain }).lean()
+      : null,
+  ]);
+  if (domainTaken) throw new AppError("Domain already taken", 409);
+  if (subdomainTaken) throw new AppError("Subdomain already taken", 409);
 
-//   } catch (err) {
-//     await session.abortTransaction();
-//     throw err;
-//   } finally {
-//     await session.endSession();
-//   }
+  // ── snapshot before state for audit ────────────────────
+  const before = {
+    company_name: company.company_name,
+    phone: company.phone,
+    address: company.address,
+    status: company.status,
+    domain: company.domain,
+    subdomain: company.subdomain,
+  };
 
-//   auditLog({
-//     req,
-//     action      : AUDIT_ACTIONS.COMPANY_CREATED,
-//     targetModel : "Company",
-//     targetId    : newCompany._id,
-//     after: {
-//       company_name  : newCompany.company_name,
-//       company_email : newCompany.company_email,
-//       admin_email   : newAdmin.email,
-//       admin_id      : newAdmin._id,
-//     },
-//   });
+  // ── build update — only include provided fields ─────────
+  const updateData = sanitizeData(payload);
+  const updated = await Company.findByIdAndUpdate(
+    companyId,
+    { $set: updateData },
+    { new: true, runValidators: true },
+  );
 
-//   return {
-//     company : newCompany,
-//     admin   : newAdmin.toJSON(),
-//   };
-// };
+  if (!updated) throw new AppError("Company update failed", 500);
 
-// ─── Export ───────────────────────────────────────────────
+  // ── audit ───────────────────────────────────────────────
+  auditLog({
+    req,
+    action: AUDIT_ACTIONS.COMPANY_UPDATED,
+    targetModel: "Company",
+    targetId: updated._id,
+    before,
+    after: {
+      company_name: updated.company_name,
+      phone: updated.phone,
+      address: updated.address,
+      status: updated.status,
+      domain: updated.domain,
+      subdomain: updated.subdomain,
+    },
+  });
+
+  return updated;
+};
+
+const deleteCompany = async (companyId: string, req: Request) => {
+  const company = await Company.findById(companyId);
+  if (!company) throw new AppError("Company not found", 404);
+
+  // snapshot for audit before deletion
+  const snapshot = {
+    company_name: company.company_name,
+    company_email: company.company_email,
+    status: company.status,
+  };
+
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    // ── find all users in this company ──────────────────
+    const companyUsers = await User.find(
+      { company_id: company._id },
+      { _id: 1 },
+    ).lean();
+
+    const userIds = companyUsers.map((u) => u._id);
+
+    // ── delete everything in parallel ───────────────────
+    await Promise.all([
+      Company.findByIdAndDelete(companyId, { session }),
+
+      // delete all users of this company
+      User.deleteMany({ company_id: company._id }, { session }),
+
+      // delete all sessions of those users
+      Session.deleteMany({ userId: { $in: userIds } }, { session }),
+    ]);
+
+    await session.commitTransaction();
+  } catch (err) {
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    await session.endSession();
+  }
+
+  // ── audit ──────────────────────────────────────────────
+  auditLog({
+    req,
+    action: AUDIT_ACTIONS.COMPANY_DELETED,
+    targetModel: "Company",
+    targetId: company._id,
+    before: snapshot,
+    after: null,
+  });
+};
 
 export const UserService = {
   createUser,
@@ -346,4 +447,8 @@ export const UserService = {
   deleteUser,
   toggleUserStatus,
   createCompany,
+  getAllCompanies,
+  getCompanyById,
+  updateCompany,
+  deleteCompany,
 };
