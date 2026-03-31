@@ -1,8 +1,143 @@
-import { CompanyUserInput } from "./company.validation";
+import mongoose from "mongoose";
+import { AppError } from "../../middlewares/appError";
+import User from "../super_admin/super_admin.schema";
+import { ICompanyDocument } from "./company.interface";
+import Company from "./company.schema";
+import { CompanyUserInput, UserQueryInput } from "./company.validation";
+import { Request } from "express";
+import { auditLog } from "../../utils/auditLogger";
+import { AUDIT_ACTIONS } from "../audit/audit.interface";
 
-const createCompanyUser = async (payload: CompanyUserInput) => {
-  console.log(payload);
+const ADMIN_ROLES = [
+  "account",
+  "site_management",
+  "inventory",
+  "sales",
+  "report",
+] as const;
+const SUPER_ADMIN_ROLES = ["admin", ...ADMIN_ROLES] as const;
+
+const createCompanyUser = async (payload: CompanyUserInput, req: Request) => {
+  const { companyId, name, email, role, password } = payload;
+  const isSuperAdmin = req.user.role === "super_admin";
+
+  if (isSuperAdmin) {
+    if (!companyId) {
+      throw new AppError("Company Id is required for Super Admin", 400);
+    }
+    if (!(SUPER_ADMIN_ROLES as readonly string[]).includes(role)) {
+      throw new AppError(`Invalid role: ${role}`, 403);
+    }
+  } else {
+    if (!(ADMIN_ROLES as readonly string[]).includes(role)) {
+      throw new AppError(`Admin cannot assign role: ${role}`, 403);
+    }
+  }
+  let companyIdToUse: mongoose.Types.ObjectId;
+
+  if (isSuperAdmin) {
+    const [existing, company] = await Promise.all([
+      User.findOne({ email }).select("_id").lean(),
+      Company.findById(companyId).select("_id status").lean(),
+    ]);
+    if (existing) throw new AppError("Email already registered", 409);
+    if (!company) {
+      throw new AppError("Company not found", 404);
+    }
+    if (company.status !== "active") {
+      throw new AppError("Cannot create user for an inactive company", 400);
+    }
+    companyIdToUse = company._id;
+  } else {
+    if (!req.user.company_id) throw new AppError("Company not found", 404);
+
+    const existing = await User.findOne({ email }).select("_id").lean();
+    if (existing) throw new AppError("Email already registered", 409);
+
+    companyIdToUse = new mongoose.Types.ObjectId(
+      req.user.company_id.toString(),
+    );
+  }
+  const user = await User.create({
+    name,
+    email,
+    password,
+    role,
+    createdBy: req.user._id,
+    company_id: companyIdToUse,
+  });
+
+  auditLog({
+    req,
+    action: AUDIT_ACTIONS.USER_CREATED,
+    targetModel: "User",
+    targetId: user._id,
+    after: {
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      company_id: user.company_id,
+      is_active: user.is_active,
+    },
+  });
+  return user.toJSON();
+};
+
+const getAllUsers = async (query: UserQueryInput, req: Request) => {
+  const {
+    page,
+    limit,
+    search,
+    role,
+    is_active,
+    sortBy,
+    sortOrder,
+    company_id,
+  } = query;
+
+  const skip = (page - 1) * limit;
+  const filter: Record<string, unknown> = {};
+  if (req.user.role === "admin") {
+    filter.company_id = req.user.company_id;
+    filter.role = {
+      $in: ["account", "site_management", "inventory", "sales", "report"],
+    };
+  } else {
+    if (company_id) filter.company_id = new mongoose.Types.ObjectId(company_id);
+  }
+  if (role) filter.role = role;
+  if (is_active) filter.is_active = is_active;
+
+  if (search) {
+    filter.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { email: { $regex: search, $options: "i" } },
+    ];
+  }
+  const [total, user] = await Promise.all([
+    User.countDocuments(filter),
+    User.find(filter)
+      .select("-password -reset_token -reset_token_exp")
+      .populate("company_id", "company_name company_email status")
+      .populate("createdBy", "name email")
+      .skip(skip)
+      .limit(limit)
+      .sort({ [sortBy ?? "createdAt"]: sortOrder ?? -1 })
+      .lean(),
+  ]);
+  return {
+    user,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.floor(total / limit),
+      hasNext: page < Math.floor(total / limit),
+      hasPrev: page > 1,
+    },
+  };
 };
 export const CompanyServices = {
-    createCompanyUser
-}
+  createCompanyUser,
+  getAllUsers
+};

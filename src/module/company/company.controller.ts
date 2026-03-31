@@ -5,7 +5,7 @@ import { ApiResponse } from "../../utils/ApiResponse";
 
 const createCompanyUser: express.RequestHandler = asyncHandler(
   async (req, res) => {
-    const user = await CompanyServices.createCompanyUser(req.body);
+    const user = await CompanyServices.createCompanyUser(req.body,req);
     return ApiResponse.created(res, user, "Company user created successfully");
   },
 );

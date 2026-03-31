@@ -60,17 +60,17 @@ export const createCompanyUserSchema = z.object({
     .optional(),
 
   email: z.email("Please enter a valid email").toLowerCase().trim(),
-  phone: z
-    .string({ error: "Phone number is required" })
-    .trim()
-    .min(7, "Phone number is too short")
-    .max(20, "Phone number is too long")
-    .regex(/^\+?[0-9\s\-().]+$/, "Please enter a valid phone number"),
+  // phone: z
+  //   .string({ error: "Phone number is required" })
+  //   .trim()
+  //   .min(7, "Phone number is too short")
+  //   .max(20, "Phone number is too long")
+  //   .regex(/^\+?[0-9\s\-().]+$/, "Please enter a valid phone number"),
   name: z
-    .string({ error: "Address is required" })
+    .string({ error: "Name is required" })
     .trim()
-    .min(5, "Address must be at least 5 characters")
-    .max(500, "Address cannot exceed 500 characters"),
+    .min(3, "Name must be at least 3 characters")
+    .max(500, "Name cannot exceed 500 characters"),
 
   role: z.enum(["report", "sales", "inventory", "site_management", "account"], {
     message: "Invalid role value",
@@ -125,6 +125,74 @@ export const updateCompanySchema = z.object({
     .optional(),
   status: z.enum(["active", "inactive", "suspended"]).optional(),
 });
+
+const objectIdSchema = z
+  .string()
+  .regex(/^[0-9a-fA-F]{24}$/, "Invalid id format");
+
+export const userQuerySchema = z.object({
+  page: z
+    .string()
+    .optional()
+    .transform((v) => parseInt(v ?? "1")),
+  limit: z
+    .string()
+    .optional()
+    .transform((v) => Math.min(parseInt(v ?? "10"), 100)),
+  search: z.string().trim().optional(),
+  role: z
+    .enum([
+      "admin",
+      "account",
+      "site_management",
+      "inventory",
+      "sales",
+      "report",
+    ])
+    .optional(),
+  is_active: z
+    .string()
+    .optional()
+    .transform((v) => {
+      if (v === "true") return true;
+      if (v === "false") return false;
+      return undefined;
+    }),
+  sortBy: z
+    .enum(["name", "email", "createdAt", "role"])
+    .optional()
+    .default("createdAt"),
+  sortOrder: z
+    .string()
+    .optional()
+    .transform((v) => (v === "asc" ? 1 : -1)),
+  company_id: objectIdSchema.optional(), // super_admin can filter by company
+});
+
+// ─── Params schema ────────────────────────────────────────
+export const userParamsSchema = z.object({
+  id: objectIdSchema,
+});
+// ─── Update user schema ───────────────────────────────────
+export const updateUserSchema = z.object({
+  name: z.string().trim().min(2).max(100).optional(),
+  is_active: z.boolean().optional(),
+
+  // only super_admin can change role — enforced in service
+  role: z
+    .enum([
+      "admin",
+      "account",
+      "site_management",
+      "inventory",
+      "sales",
+      "report",
+    ])
+    .optional(),
+});
+
+export type UserQueryInput = z.infer<typeof userQuerySchema>;
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>;
 export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
 export type CompanyQueryInput = z.infer<typeof companyQuerySchema>;

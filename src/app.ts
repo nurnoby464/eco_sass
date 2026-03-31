@@ -32,10 +32,10 @@ app.use(cookieParser());
 // Routes
 app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/super-admin", SuperAdminRoute);
-app.use("/api/company", CompanyRouter);
-// app.use('/api/vendor',   vendorRoutes);
-// app.use('/api/customer', customerRoutes);
-// app.use('/api/public',   publicRoutes);
+app.use("/api/v1/company", CompanyRouter);
+// app.use('/api/v1/vendor',   vendorRoutes);
+// app.use('/api/v1/customer', customerRoutes);
+// app.use('/api/v1/public',   publicRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
