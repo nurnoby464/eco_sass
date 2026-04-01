@@ -1,6 +1,11 @@
 import express from "express";
 import { validate } from "../../middlewares/validate";
-import { createCompanyUserSchema } from "./company.validation";
+import {
+  createCompanyUserSchema,
+  updateUserSchema,
+  userParamsSchema,
+  userQuerySchema,
+} from "./company.validation";
 import { guard } from "../../middlewares/guard";
 import {
   authenticate,
@@ -12,9 +17,35 @@ const router = express.Router();
 router.use(authenticate);
 router.use(verifySession);
 router.post(
-  "/user",
+  "/users",
   validate({ body: createCompanyUserSchema }),
   guard("admin", "super_admin"),
   CompanyControllers.createCompanyUser,
+);
+router.get(
+  "/users",
+  guard("super_admin", "admin"),
+  validate({ query: userQuerySchema }),
+  CompanyControllers.getAllUsers,
+);
+router.get(
+  "/users/:id",
+  guard("super_admin", "admin"),
+  validate({ params: userParamsSchema }),
+  CompanyControllers.getUserById,
+);
+router.patch(
+  "/users/:id",
+  guard("super_admin", "admin"),
+  validate({ params: userParamsSchema, body: updateUserSchema }),
+  CompanyControllers.updateUser,
+);
+
+// ─── Delete ───────────────────────────────────────────────
+router.delete(
+  "/users/:id",
+  guard("super_admin", "admin"),
+  validate({ params: userParamsSchema }),
+  CompanyControllers.deleteUser,
 );
 export const CompanyRouter = router;

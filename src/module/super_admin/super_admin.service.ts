@@ -4,7 +4,7 @@ import { AppError } from "../../middlewares/appError";
 import User from "./super_admin.schema";
 import { IUserDocument } from "./super_admin.interface";
 import {
-  CreateCompanyWithAdminInput,
+  CreateNewCompanyInput,
   CreateUserInput,
 } from "./super_admin.validation";
 import { ITokenPayload } from "../../utils/jwtHelper";
@@ -165,16 +165,23 @@ const toggleUserStatus = async (id: string, requestor: ITokenPayload) => {
 
 // create company
 
-const createCompany = async (
-  payload: CreateCompanyWithAdminInput,
-  req: Request,
-) => {
-  const { company, admin } = payload;
+const createCompany = async (payload: CreateNewCompanyInput, req: Request) => {
+  const {
+    company_email,
+    company_name,
+    address,
+    password,
+    phone,
+    status,
+    logo,
+    domain,
+    subdomain,
+  } = payload;
 
   // ── 1. duplicate checks in parallel ────────────────────
   const [existingCompany, existingAdmin] = await Promise.all([
-    Company.findOne({ company_email: company.company_email }).lean(), // ← lean() — no mongoose doc overhead
-    User.findOne({ email: admin.email }).lean(),
+    Company.findOne({ company_email: company_email }).lean(), // ← lean() — no mongoose doc overhead
+    User.findOne({ email: company_email }).lean(),
   ]);
 
   if (existingCompany)
@@ -203,16 +210,16 @@ const createCompany = async (
         [
           {
             _id: companyId,
-            company_name: company.company_name,
-            company_email: company.company_email,
-            phone: company.phone,
-            address: company.address,
+            company_name: company_name,
+            company_email: company_email,
+            phone: phone,
+            address: address,
             admin_id: adminId, // ← set directly, no update needed
             createdBy: req.user._id,
-            status: company.status,
-            ...(company.logo && { logo: company.logo }),
-            ...(company.domain && { domain: company.domain }),
-            ...(company.subdomain && { subdomain: company.subdomain }),
+            status: status,
+            ...(logo && { logo: logo }),
+            ...(domain && { domain: domain }),
+            ...(subdomain && { subdomain: subdomain }),
           },
         ],
         { session },
@@ -221,9 +228,9 @@ const createCompany = async (
         [
           {
             _id: adminId,
-            name: admin.name,
-            email: admin.email,
-            password: admin.password,
+            name: company_name,
+            email: company_email,
+            password: password,
             role: "admin",
             company_id: companyId, // ← set directly
             createdBy: req.user._id,

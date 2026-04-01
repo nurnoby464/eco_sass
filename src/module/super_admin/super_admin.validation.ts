@@ -1,12 +1,9 @@
 import { z } from "zod";
-import { createCompanySchema } from "../company/company.validation";
+import { createNewCompanySchema } from "../company/company.validation";
 
 export const createUserSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters"),
-  email: z
-    .email("Please enter a valid email")
-    .toLowerCase()
-    .trim(),
+  email: z.email("Please enter a valid email").toLowerCase().trim(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.enum([
     "super_admin",
@@ -30,26 +27,6 @@ export const createUserSchema = z.object({
     .nullable(),
 });
 
-// make admin schema.
-
-const adminSchema = createUserSchema
-  .omit({
-    role: true,
-    company_id: true,
-    createdBy: true,
-    is_active: true,
-  })
-  .extend({
-    role: z.literal("admin").default("admin"),
-  });
-
-export const createCompanyWithAdminSchema = z.object({
-  company: createCompanySchema,
-  admin: adminSchema,
-});
-
 // ─── Derive the type from the schema ─────────────────────
 export type CreateUserInput = z.infer<typeof createUserSchema>;
-export type CreateCompanyWithAdminInput = z.infer<
-  typeof createCompanyWithAdminSchema
->;
+export type CreateNewCompanyInput = z.infer<typeof createNewCompanySchema>;

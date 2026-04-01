@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { UserRole } from "../module/super_admin/super_admin.interface";
 
 // ─── Extend Express Request ───────────────────────────────
 declare global {
@@ -8,7 +9,7 @@ declare global {
         _id: mongoose.Types.ObjectId;
         email: string;
         name: string;
-        role: string;
+        role: UserRole;
         company_id: mongoose.Types.ObjectId | null;
         sessionId: string;
         passwordChangedAt: number | null;

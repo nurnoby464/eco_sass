@@ -1,9 +1,6 @@
 import express from "express";
 import { validate } from "../../middlewares/validate";
-import {
-  createCompanyWithAdminSchema,
-  createUserSchema,
-} from "./super_admin.validation";
+import { createUserSchema } from "./super_admin.validation";
 import { UserController } from "./super_admin.controller";
 import {
   authenticate,
@@ -13,6 +10,7 @@ import { guard } from "../../middlewares/guard";
 import {
   companyParamsSchema,
   companyQuerySchema,
+  createNewCompanySchema,
   updateCompanySchema,
 } from "../company/company.validation";
 const router = express.Router();
@@ -21,7 +19,7 @@ router.use(verifySession);
 router.post(
   "/company",
   guard("super_admin"),
-  validate({ body: createCompanyWithAdminSchema }),
+  validate({ body: createNewCompanySchema }),
   UserController.createCompany,
 );
 // ─── POST /users ──────────────────────────────────────────

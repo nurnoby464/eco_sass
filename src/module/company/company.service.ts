@@ -3,10 +3,16 @@ import { AppError } from "../../middlewares/appError";
 import User from "../super_admin/super_admin.schema";
 import { ICompanyDocument } from "./company.interface";
 import Company from "./company.schema";
-import { CompanyUserInput, UserQueryInput } from "./company.validation";
+import {
+  CompanyUserInput,
+  UpdateUserInput,
+  UserQueryInput,
+} from "./company.validation";
 import { Request } from "express";
 import { auditLog } from "../../utils/auditLogger";
 import { AUDIT_ACTIONS } from "../audit/audit.interface";
+import { sanitizeData } from "../../utils/sanitizeData";
+import Session from "../auth/auth.schema";
 
 const ADMIN_ROLES = [
   "account",
@@ -16,6 +22,33 @@ const ADMIN_ROLES = [
   "report",
 ] as const;
 const SUPER_ADMIN_ROLES = ["admin", ...ADMIN_ROLES] as const;
+
+const targetFinder = async (userId: string, req: Request, action: string) => {
+  const filter: Record<string, unknown> = {
+    _id: new mongoose.Types.ObjectId(userId),
+  };
+  if (req.user.role === "admin") {
+    filter.company_id = req.user.company_id;
+  }
+
+  const target = await User.findOne(filter).lean();
+  if (!target) {
+    throw new AppError("Target user not found", 404);
+  }
+
+  if (target._id.equals(req.user._id)) {
+    throw new AppError(`You cannot ${action} your own account`, 400);
+  }
+
+  if (target.role === "super_admin") {
+    throw new AppError(`super_admin accounts cannot be ${action}`, 403);
+  }
+
+  if (target.role === "admin" && req.user.role === "admin") {
+    throw new AppError(`Admin cannot ${action} another admin`, 403);
+  }
+  return target;
+};
 
 const createCompanyUser = async (payload: CompanyUserInput, req: Request) => {
   const { companyId, name, email, role, password } = payload;
@@ -137,7 +170,109 @@ const getAllUsers = async (query: UserQueryInput, req: Request) => {
     },
   };
 };
+
+const getUserById = async (userId: string, req: Request) => {
+  const filter: Record<string, unknown> = {
+    _id: new mongoose.Types.ObjectId(userId),
+  };
+
+  // admin can only see users in their own company
+  if (req.user.role === "admin") {
+    filter.company_id = req.user.company_id;
+  }
+  const user = await User.findOne(filter)
+    .select("-password -reset_token -reset_token_exp")
+    .populate("company_id", "company_name company_email status")
+    .populate("createdBy", "name email")
+    .lean();
+
+  if (!user) throw new AppError("Single user not found", 404);
+
+  return user;
+};
+
+const updateUser = async (
+  userId: string,
+  payload: UpdateUserInput,
+  req: Request,
+) => {
+  const target = await targetFinder(userId, req, "update");
+  // if (payload.role && req.user.role === "admin") {
+  //   throw new AppError("Admin cannot change user roles", 403);
+  // }
+  const before = {
+    name: target.name,
+    role: target.role,
+    is_active: target.is_active,
+  };
+  const updateData: Record<string, unknown> = {};
+  if (payload.name !== undefined) updateData.name = payload.name;
+  if (payload.role !== undefined) updateData.role = payload.role;
+  if (payload.is_active !== undefined) updateData.is_active = payload.is_active;
+  if (Object.keys(updateData).length === 0) {
+    throw new AppError("No fields to update", 400);
+  }
+  const updated = await User.findByIdAndUpdate(
+    userId,
+    {
+      $set: updateData,
+    },
+    { new: true, runValidators: true },
+  ).select("-password -reset_token -reset_token_exp");
+
+  if (!updated) throw new AppError("User update failed", 500);
+  if (payload.is_active === false) {
+    await Session.deleteMany({ userId: target._id });
+  }
+
+  auditLog({
+    req,
+    action: "USER_UPDATED",
+    targetModel: "User",
+    targetId: updated._id,
+    before,
+    after: {
+      name: updated.name,
+      role: updated.role,
+      is_active: updated.is_active,
+    },
+  });
+  return updated.toJSON();
+};
+
+const deleteUser = async (userId: string, req: Request) => {
+  const target = await targetFinder(userId, req, "delete");
+
+  // snapshot for audit
+  const snapshot = {
+    name: target.name,
+    email: target.email,
+    role: target.role,
+    company_id: target.company_id,
+    is_active: target.is_active,
+  };
+
+  // ── delete user + their sessions in parallel ──────────
+  await Promise.all([
+    User.findByIdAndDelete(userId),
+    Session.deleteMany({ userId: target._id }),
+  ]);
+
+  // ── audit ──────────────────────────────────────────────
+  auditLog({
+    req,
+    action: AUDIT_ACTIONS.USER_DELETED,
+    targetModel: "User",
+    targetId: target._id,
+    before: snapshot,
+    after: null,
+  });
+};
+
 export const CompanyServices = {
   createCompanyUser,
-  getAllUsers
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
 };

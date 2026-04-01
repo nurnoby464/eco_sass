@@ -1,6 +1,6 @@
 import z, { email } from "zod";
 
-export const createCompanySchema = z.object({
+export const createNewCompanySchema = z.object({
   company_name: z
     .string({ error: "Company name is required" })
     .trim()
@@ -50,6 +50,7 @@ export const createCompanySchema = z.object({
       message: "Invalid status value",
     })
     .default("active"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 export const createCompanyUserSchema = z.object({
@@ -194,6 +195,6 @@ export const updateUserSchema = z.object({
 export type UserQueryInput = z.infer<typeof userQuerySchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>;
-export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
+export type CreateCompanyInput = z.infer<typeof createNewCompanySchema>;
 export type CompanyQueryInput = z.infer<typeof companyQuerySchema>;
 export type CompanyUserInput = z.infer<typeof createCompanyUserSchema>;
