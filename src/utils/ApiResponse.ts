@@ -1,8 +1,12 @@
-import { Response } from 'express';
+import { Response } from "express";
 
 export class ApiResponse {
-
-  static success(res: Response, data: any, message = 'Success', statusCode = 200) {
+  static success(
+    res: Response,
+    data: any,
+    message = "Success",
+    statusCode = 200,
+  ) {
     return res.status(statusCode).json({
       success: true,
       message,
@@ -10,7 +14,7 @@ export class ApiResponse {
     });
   }
 
-  static created(res: Response, data: any, message = 'Created successfully') {
+  static created(res: Response, data: any, message = "Created successfully") {
     return res.status(201).json({
       success: true,
       message,
@@ -18,7 +22,12 @@ export class ApiResponse {
     });
   }
 
-  static error(res: Response, message = 'Something went wrong', statusCode = 500, errors?: any) {
+  static error(
+    res: Response,
+    message = "Something went wrong",
+    statusCode = 500,
+    errors?: any,
+  ) {
     return res.status(statusCode).json({
       success: false,
       message,
@@ -26,17 +35,29 @@ export class ApiResponse {
     });
   }
 
-  static paginated(res: Response, data: any, total: number, page: number, limit: number) {
+  static paginated(
+    res: Response,
+    message = "Data fetched successfully",
+    data: any,
+    total: number,
+    page: number,
+    limit: number,
+
+  ) {
     return res.status(200).json({
       success: true,
+      message,
       data,
       pagination: {
         total,
         page,
         limit,
-        total_pages: Math.ceil(total / limit),
+        // totalPages: Math.ceil(total / limit),
+        totalPages: Math.floor(total / limit),
+        hasNext: page < Math.floor(total / limit),
+        hasPrev: page > 1,
       },
+      
     });
   }
-
 }

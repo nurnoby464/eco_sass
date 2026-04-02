@@ -1,13 +1,13 @@
 import { Request } from "express";
 import mongoose from "mongoose";
 import Audit from "../module/audit/audit.schema";
-import { AuditAction } from "../module/audit/audit.interface";
+import { AuditAction, AuditTargetModel } from "../module/audit/audit.interface";
 
 interface IAuditParams {
   req: Request;
   action: AuditAction;
   status?: "success" | "failed";
-  targetModel?: "User" | "Company" | "Session";
+  targetModel?: AuditTargetModel;
   targetId?: mongoose.Types.ObjectId;
   before?: Record<string, unknown> | null; // state before change
   after?: Record<string, unknown> | null; // state after change

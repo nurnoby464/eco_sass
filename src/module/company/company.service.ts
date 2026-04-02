@@ -160,14 +160,9 @@ const getAllUsers = async (query: UserQueryInput, req: Request) => {
   ]);
   return {
     user,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.floor(total / limit),
-      hasNext: page < Math.floor(total / limit),
-      hasPrev: page > 1,
-    },
+    page,
+    limit,
+    total,
   };
 };
 

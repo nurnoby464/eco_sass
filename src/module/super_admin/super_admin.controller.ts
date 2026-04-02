@@ -24,7 +24,7 @@ const getById = asyncHandler(async (req: Request, res: Response) => {
 const list = asyncHandler(async (req: Request, res: Response) => {
   const { users, total, page, limit } = await UserService.listUsers(req.query);
 
-  return ApiResponse.paginated(res, users, total, page, limit);
+  return ApiResponse.paginated(res,"User list fetch successfully", users, total, page, limit);
 });
 
 // ─── DELETE /users/:id ────────────────────────────────────

@@ -12,11 +12,12 @@ const createCompanyUser: express.RequestHandler = asyncHandler(
 );
 
 const getAllUsers: express.RequestHandler = asyncHandler(async (req, res) => {
-  const result = await CompanyServices.getAllUsers(
+  const {user, page, limit, total} = await CompanyServices.getAllUsers(
     req.validatedQuery as UserQueryInput,
     req,
   );
-  return ApiResponse.success(res, result, "Users fetched successfully");
+  return ApiResponse.paginated(res,"User fetch successfully", user, total, page, limit);
+  // return ApiResponse.success(res, result, "Users fetched successfully");
 });
 
 const getUserById: express.RequestHandler = asyncHandler(async (req, res) => {
