@@ -11,7 +11,7 @@ const objectId = z
 export const createVendorSchema = z.object({
   name   : z.string().trim().min(2, "Min 2 characters").max(200, "Max 200 characters"),
   phone  : z.string().trim().min(1, "Phone is required"),
-  email  : z.string().trim().email("Invalid email").toLowerCase().optional().nullable(),
+  email  : z.email("Invalid email").toLowerCase().optional().nullable(),
   address: z.string().trim().optional().nullable(),
 });
 

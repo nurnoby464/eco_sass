@@ -79,7 +79,7 @@ export const deleteProduct = asyncHandler(
     const product = await ProductService.deleteProduct({
       id: req.params.id as string,
       company_id: req.user.company_id!,
-      req
+      req,
     });
 
     return ApiResponse.success(res, null, "Product deactivated successfully");
@@ -92,13 +92,13 @@ export const deleteProduct = asyncHandler(
 
 export const createVariant = asyncHandler(
   async (req: Request, res: Response) => {
+    console.log(req.user);
     const variant = await ProductService.createVariant({
       ...req.body,
       product_id: req.params.id,
       company_id: req.user.company_id!,
+      req,
     });
-
- 
 
     return ApiResponse.created(res, variant, "Variant created successfully");
   },
@@ -117,10 +117,10 @@ export const updateVariant = asyncHandler(
   async (req: Request, res: Response) => {
     const variant = await ProductService.updateVariant({
       id: req.params.variantId as string,
-      product_id: req.params.id    as string,
+      product_id: req.params.id as string,
       company_id: req.user.company_id!,
       data: req.body,
-      req
+      req,
     });
     return ApiResponse.success(res, variant, "Variant updated successfully");
   },
@@ -130,9 +130,9 @@ export const deleteVariant = asyncHandler(
   async (req: Request, res: Response) => {
     const variant = await ProductService.deleteVariant({
       id: req.params.variantId as string,
-      product_id: req.params.id   as string,
+      product_id: req.params.id as string,
       company_id: req.user.company_id!,
-      req
+      req,
     });
     return ApiResponse.success(res, null, "Variant deactivated successfully");
   },

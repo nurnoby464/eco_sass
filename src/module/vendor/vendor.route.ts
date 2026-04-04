@@ -10,6 +10,8 @@ import {
   vendorQuerySchema,
 } from "./vendor.validation";
 import { VendorController } from "./vendor.controller";
+import { authenticate, verifySession } from "../../middlewares/AuthenticateHelper";
+import { guard } from "../../middlewares/guard";
 
 const router = Router();
 
@@ -18,10 +20,12 @@ router
   .route("/")
   .get(
     validate({ query: vendorQuerySchema }),
+    authenticate,verifySession, guard("super_admin","admin","inventory"),
     VendorController.getVendors
   )
   .post(
     validate({ body: createVendorSchema }),
+    authenticate,verifySession, guard("super_admin","admin","inventory"),
     VendorController.createVendor
   );
 
@@ -30,14 +34,17 @@ router
   .route("/:id")
   .get(
     validate({ params: vendorParamsSchema }),
+    authenticate, verifySession, guard("super_admin","admin","inventory"),
     VendorController.getVendorById
   )
   .patch(
     validate({ params: vendorParamsSchema, body: updateVendorSchema }),
+    authenticate, verifySession, guard("super_admin","admin","inventory"),
     VendorController.updateVendor
   )
   .delete(
     validate({ params: vendorParamsSchema }),
+    authenticate, verifySession, guard("super_admin","admin","inventory"),
     VendorController.deleteVendor
   );
 
@@ -46,6 +53,7 @@ router
   .route("/:id/notes")
   .post(
     validate({ params: vendorParamsSchema, body: addNoteSchema }),
+    authenticate, verifySession, guard("super_admin","admin","inventory"),
     VendorController.addNote
   );
 
@@ -54,7 +62,8 @@ router
   .route("/:id/notes/:noteId")
   .delete(
     validate({ params: noteParamsSchema }),
+    authenticate, verifySession, guard("super_admin","admin","inventory"),
     VendorController.deleteNote
   );
 
-export default router;
+export const VendorRoutes = router;

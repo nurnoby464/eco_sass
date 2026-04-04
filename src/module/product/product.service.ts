@@ -337,7 +337,7 @@ export const createVariant = async (payload: {
   req: Request;
 }) => {
   const { product_id, company_id, sku, req } = payload;
-
+console.log(payload)
   // product must exist, belong to company, and have has_variants = true
   const product = await Product.findOne({
     _id: product_id,

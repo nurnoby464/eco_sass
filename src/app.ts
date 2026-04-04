@@ -11,6 +11,10 @@ import {
 import { AuthRoutes } from "./module/auth/auth.route";
 import cookieParser from "cookie-parser";
 import { CompanyRouter } from "./module/company/company.route";
+import { VendorRoutes } from "./module/vendor/vendor.route";
+import { CategoryRoutes } from "./module/category/category.route";
+import { ProductRoutes } from "./module/product/product.route";
+import { PurchaseRoute } from "./module/purchase/purchase.route";
 
 // routes
 // import authRoutes from './modules/auth/auth.routes';
@@ -33,7 +37,10 @@ app.use(cookieParser());
 app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/super-admin", SuperAdminRoute);
 app.use("/api/v1/company", CompanyRouter);
-// app.use('/api/v1/vendor',   vendorRoutes);
+app.use('/api/v1/vendor',   VendorRoutes);
+app.use('/api/v1/category',   CategoryRoutes);
+app.use('/api/v1/product',   ProductRoutes);
+app.use('/api/v1/purchase',   PurchaseRoute);
 // app.use('/api/v1/customer', customerRoutes);
 // app.use('/api/v1/public',   publicRoutes);
 

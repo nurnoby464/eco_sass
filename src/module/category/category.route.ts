@@ -1,6 +1,6 @@
 // src/module/category/category.route.ts
-import { Router }              from "express";
-import { validate }            from "../../middlewares/validate";
+import { Router } from "express";
+import { validate } from "../../middlewares/validate";
 import * as CategoryController from "./category.controller";
 import {
   createCategorySchema,
@@ -8,6 +8,11 @@ import {
   categoryParamsSchema,
   categoryQuerySchema,
 } from "./category.validation";
+import {
+  authenticate,
+  verifySession,
+} from "../../middlewares/AuthenticateHelper";
+import { guard } from "../../middlewares/guard";
 
 const router = Router();
 
@@ -16,11 +21,17 @@ router
   .route("/")
   .get(
     validate({ query: categoryQuerySchema }),
-    CategoryController.getCategories
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    CategoryController.getCategories,
   )
   .post(
     validate({ body: createCategorySchema }),
-    CategoryController.createCategory
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    CategoryController.createCategory,
   );
 
 // ── /api/categories/:id/tree ──────────────────────────────
@@ -28,7 +39,10 @@ router
   .route("/:id/tree")
   .get(
     validate({ params: categoryParamsSchema }),
-    CategoryController.getCategoryTree
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    CategoryController.getCategoryTree,
   );
 
 // ── /api/categories/:id ───────────────────────────────────
@@ -36,15 +50,24 @@ router
   .route("/:id")
   .get(
     validate({ params: categoryParamsSchema }),
-    CategoryController.getCategoryById
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    CategoryController.getCategoryById,
   )
   .patch(
     validate({ params: categoryParamsSchema, body: updateCategorySchema }),
-    CategoryController.updateCategory
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    CategoryController.updateCategory,
   )
   .delete(
     validate({ params: categoryParamsSchema }),
-    CategoryController.deleteCategory
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    CategoryController.deleteCategory,
   );
 
-export default router;
+export const CategoryRoutes = router;

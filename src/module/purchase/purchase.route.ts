@@ -1,6 +1,6 @@
 // src/module/purchase/purchase.route.ts
-import { Router }             from "express";
-import { validate }           from "../../middlewares/validate";
+import { Router } from "express";
+import { validate } from "../../middlewares/validate";
 import * as PurchaseController from "./purchase.controller";
 import {
   createPurchaseSchema,
@@ -15,11 +15,11 @@ router
   .route("/")
   .get(
     validate({ query: purchaseQuerySchema }),
-    PurchaseController.getPurchases
+    PurchaseController.getPurchases,
   )
   .post(
     validate({ body: createPurchaseSchema }),
-    PurchaseController.createPurchase
+    PurchaseController.createPurchase,
   );
 
 // ── /api/purchases/:id ────────────────────────────────────
@@ -27,7 +27,7 @@ router
   .route("/:id")
   .get(
     validate({ params: purchaseParamsSchema }),
-    PurchaseController.getPurchaseById
+    PurchaseController.getPurchaseById,
   );
 
-export default router;
+export const PurchaseRoute = router;

@@ -28,7 +28,6 @@ const getVendors = asyncHandler(async (req: Request, res: Response) => {
     sort_by: string;
     sort_order: string;
   };
-
   const { vendors, total } = await VendorService.getVendors({
     company_id: req.user.company_id!,
     ...query,

@@ -1,6 +1,6 @@
 // src/module/product/product.route.ts
-import { Router }             from "express";
-import { validate }           from "../../middlewares/validate";
+import { Router } from "express";
+import { validate } from "../../middlewares/validate";
 import * as ProductController from "./product.controller";
 import {
   createProductSchema,
@@ -11,6 +11,11 @@ import {
   variantParamsSchema,
   productQuerySchema,
 } from "./product.validation";
+import {
+  authenticate,
+  verifySession,
+} from "../../middlewares/AuthenticateHelper";
+import { guard } from "../../middlewares/guard";
 
 const router = Router();
 
@@ -19,11 +24,17 @@ router
   .route("/")
   .get(
     validate({ query: productQuerySchema }),
-    ProductController.getProducts
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    ProductController.getProducts,
   )
   .post(
     validate({ body: createProductSchema }),
-    ProductController.createProduct
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    ProductController.createProduct,
   );
 
 // ── /api/products/:id ─────────────────────────────────────
@@ -31,15 +42,24 @@ router
   .route("/:id")
   .get(
     validate({ params: productParamsSchema }),
-    ProductController.getProductById
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    ProductController.getProductById,
   )
   .patch(
     validate({ params: productParamsSchema, body: updateProductSchema }),
-    ProductController.updateProduct
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    ProductController.updateProduct,
   )
   .delete(
     validate({ params: productParamsSchema }),
-    ProductController.deleteProduct
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    ProductController.deleteProduct,
   );
 
 // ── /api/products/:id/variants ────────────────────────────
@@ -47,11 +67,17 @@ router
   .route("/:id/variants")
   .get(
     validate({ params: productParamsSchema }),
-    ProductController.getVariants
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    ProductController.getVariants,
   )
   .post(
     validate({ params: productParamsSchema, body: createVariantSchema }),
-    ProductController.createVariant
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    ProductController.createVariant,
   );
 
 // ── /api/products/:id/variants/:variantId ─────────────────
@@ -59,11 +85,17 @@ router
   .route("/:id/variants/:variantId")
   .patch(
     validate({ params: variantParamsSchema, body: updateVariantSchema }),
-    ProductController.updateVariant
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    ProductController.updateVariant,
   )
   .delete(
     validate({ params: variantParamsSchema }),
-    ProductController.deleteVariant
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    ProductController.deleteVariant,
   );
 
-export default router;
+export const ProductRoutes = router;
