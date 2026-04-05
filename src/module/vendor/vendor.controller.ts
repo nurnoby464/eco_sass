@@ -8,12 +8,14 @@ import { auditLog } from "../../utils/auditLogger";
 
 // ─── Create ───────────────────────────────────────────────
 const createVendor = asyncHandler(async (req: Request, res: Response) => {
-  const vendor = await VendorService.createVendor({
-    ...req.body,
-    company_id: req.user.company_id!,
-    createdBy: req.user._id,
+  const vendor = await VendorService.createVendor(
+    {
+      ...req.body,
+      company_id: req.user.company_id!,
+      createdBy: req.user._id,
+    },
     req,
-  });
+  );
 
   return ApiResponse.created(res, vendor, "Vendor created successfully");
 });

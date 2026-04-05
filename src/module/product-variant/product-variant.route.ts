@@ -1,0 +1,58 @@
+import { Router } from "express";
+import { validate } from "../../middlewares/validate";
+import {
+  authenticate,
+  verifySession,
+} from "../../middlewares/AuthenticateHelper";
+import { guard } from "../../middlewares/guard";
+import * as ProductVariantController from "./product-variant.controller";
+import {
+  createVariantSchema,
+  productVariantParamsSchema,
+  updateVariantSchema,
+  variantParamsSchema,
+} from "./product-variant.validation";
+const variantRouter = Router({ mergeParams: true }); // mergeParams to access :id from parent
+
+variantRouter
+  .route("/")
+  .get(
+    validate({ params: variantParamsSchema }),
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory", "sales", "report"),
+    ProductVariantController.getVariants,
+  )
+  .post(
+    validate({ params: variantParamsSchema, body: createVariantSchema }),
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    ProductVariantController.createVariant,
+  );
+
+variantRouter
+  .route("/:variantId")
+  .get(
+    validate({ params: productVariantParamsSchema }),
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory", "sales", "report"),
+    ProductVariantController.getVariantById,
+  )
+  .patch(
+    validate({ params: productVariantParamsSchema, body: updateVariantSchema }),
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    ProductVariantController.updateVariant,
+  )
+  .delete(
+    validate({ params: productVariantParamsSchema }),
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin"),
+    ProductVariantController.deleteVariant,
+  );
+
+  export const ProductVariantRoute = variantRouter;

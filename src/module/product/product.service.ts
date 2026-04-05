@@ -10,6 +10,8 @@ import { auditLog } from "../../utils/auditLogger";
 import { AUDIT_ACTIONS } from "../audit/audit.interface";
 import { Request } from "express";
 import { compareSync } from "bcryptjs";
+import { CreateProductInput } from "./product.validation";
+import { sanitizeData } from "../../utils/sanitizeData";
 
 // ─── helpers ─────────────────────────────────────────────
 const generateSlug = (name: string): string => {
@@ -40,63 +42,53 @@ const assertUniqVariantSku = async (
 };
 
 // ─── Create product ───────────────────────────────────────
-export const createProduct = async (payload: {
-  company_id: mongoose.Types.ObjectId;
-  category_id: string;
-  vendor_id: string;
-  name: string;
-  description?: string | null;
-  images?: string[];
-  sku: string;
-  buying_price: number;
-  selling_price: number;
-  stock?: number;
-  low_stock_alert?: number;
-  has_variants?: boolean;
-  createdBy: mongoose.Types.ObjectId;
-  req: Request;
-}) => {
-  const { company_id, category_id, vendor_id, name, sku } = payload;
+export const createProduct = async (
+  payload: CreateProductInput & {
+    company_id: mongoose.Types.ObjectId;
+    createdBy: mongoose.Types.ObjectId;
+  },
+  req: Request,
+) => {
+  const { company_id, createdBy, ...rest } = payload;
 
   // validate category belongs to company
-  const category = await Category.findOne({
-    _id: category_id,
-    company_id,
-    is_active: true,
-  }).lean();
-  if (!category) throw new AppError("Category not found or inactive", 404);
-
+  // const category = await Category.findOne({
+  //   _id: category_id,
+  //   company_id,
+  //   is_active: true,
+  // }).lean();
+  // if (!category) throw new AppError("Category not found or inactive", 404);
+  const slug = generateSlug(rest.name);
   // validate vendor belongs to company
-  const vendor = await Vendor.findOne({
-    _id: vendor_id,
-    company_id,
-    is_active: true,
-  }).lean();
-  if (!vendor) throw new AppError("Vendor not found or inactive", 404);
-
-  // unique sku check
-  await assertUniqProductSku(sku, company_id);
-
-  const slug = generateSlug(name);
+  // const vendor = await Vendor.findOne({
+  //   _id: vendor_id,
+  //   company_id,
+  //   is_active: true,
+  // }).lean();
+  // if (!vendor) throw new AppError("Vendor not found or inactive", 404);
 
   // unique slug check
   const slugExists = await Product.findOne({ company_id, slug }).lean();
-  if (slugExists) throw new AppError(`Product "${name}" already exists`, 409);
+  if (slugExists)
+    throw new AppError(`Product "${rest.name}" already exists`, 409);
 
-  const product = await Product.create({
-    ...payload,
-    slug,
-    // if has_variants — stock must be 0 (lives on variants)
-    stock: payload.has_variants ? 0 : (payload.stock ?? 0),
-  });
+  const product = await Product.create(
+    sanitizeData({ ...rest, company_id, createdBy, slug }),
+  );
 
   auditLog({
-    req: payload.req,
+    req,
     action: AUDIT_ACTIONS.PRODUCT_CREATED,
     targetModel: "Product",
     targetId: product._id,
     after: {
       name: product.name,
+      slug: product.slug,
+      buying_price: product.buying_price,
+      selling_price: product.selling_price,
+      description: product.description,
+      category_id: product.category_id,
+      vendor_id: product.vendor_id,
     },
   });
 
@@ -130,7 +122,8 @@ export const getProducts = async (payload: {
     sort_by,
     sort_order,
   } = payload;
-
+  
+  if (!company_id) throw new AppError("company_id is required", 400);
   const filter: Record<string, unknown> = { company_id };
 
   if (is_active !== undefined) filter.is_active = is_active;
@@ -240,6 +233,9 @@ export const updateProduct = async (payload: {
   }
   const before: Record<string, unknown> = {
     name: product.name,
+    company_id: product.company_id,
+    category_id: product.category_id,
+    vendor_id: product.vendor_id,
   };
 
   // regenerate slug if name changes
@@ -283,6 +279,12 @@ export const updateProduct = async (payload: {
     before: before,
     after: {
       name: product.name,
+      slug: product.slug,
+      buying_price: product.buying_price,
+      selling_price: product.selling_price,
+      company_id: product.company_id,
+      category_id: product.category_id,
+      vendor_id: product.vendor_id,
     },
   });
   return product;
@@ -323,173 +325,3 @@ export const deleteProduct = async (payload: {
 // ═══════════════════════════════════════════════════════════
 // VARIANT SERVICES
 // ═══════════════════════════════════════════════════════════
-
-// ─── Create variant ───────────────────────────────────────
-export const createVariant = async (payload: {
-  product_id: string;
-  company_id: mongoose.Types.ObjectId;
-  attributes: IAttribute[];
-  sku: string;
-  buying_price: number;
-  selling_price: number;
-  stock?: number;
-  low_stock_alert?: number;
-  req: Request;
-}) => {
-  const { product_id, company_id, sku, req } = payload;
-console.log(payload)
-  // product must exist, belong to company, and have has_variants = true
-  const product = await Product.findOne({
-    _id: product_id,
-    company_id,
-    is_active: true,
-  }).lean();
-  if (!product) throw new AppError("Product not found", 404);
-  if (!product.has_variants) {
-    throw new AppError(
-      "This product does not support variants. Enable has_variants first.",
-      400,
-    );
-  }
-
-  // unique sku
-  await assertUniqVariantSku(sku, company_id);
-
-  // check duplicate attribute combination for this product
-  const attrFilter = payload.attributes.map((a) => ({
-    $elemMatch: { key: a.key, value: a.value },
-  }));
-
-  const duplicate = await ProductVariant.findOne({
-    product_id,
-    is_active: true,
-    $and: payload.attributes.map((a) => ({
-      attributes: { $elemMatch: { key: a.key, value: a.value } },
-    })),
-  }).lean();
-
-  if (duplicate) {
-    throw new AppError(
-      "A variant with the same attribute combination already exists",
-      409,
-    );
-  }
-
-  const variant = await ProductVariant.create({
-    ...payload,
-    product_id: new mongoose.Types.ObjectId(product_id),
-  });
-
-  auditLog({
-    req,
-    action: AUDIT_ACTIONS.VARIANT_CREATED,
-    targetModel: "ProductVariant",
-    targetId: variant._id,
-    after: {
-        product_id: variant.product_id,
-    },
-  });
-
-  return variant;
-};
-
-// ─── Get variants of a product ────────────────────────────
-export const getVariants = async (payload: {
-  product_id: string;
-  company_id: mongoose.Types.ObjectId;
-}) => {
-  const product = await Product.findOne({
-    _id: payload.product_id,
-    company_id: payload.company_id,
-  }).lean();
-  if (!product) throw new AppError("Product not found", 404);
-
-  const variants = await ProductVariant.find({
-    product_id: payload.product_id,
-  })
-    .sort({ createdAt: 1 })
-    .lean();
-
-  return variants;
-};
-
-// ─── Update variant ───────────────────────────────────────
-export const updateVariant = async (payload: {
-  id: string;
-  product_id: string;
-  company_id: mongoose.Types.ObjectId;
-  req:Request;
-  data: {
-    attributes?: IAttribute[];
-    sku?: string;
-    buying_price?: number;
-    selling_price?: number;
-    stock?: number;
-    low_stock_alert?: number;
-    is_active?: boolean;
-  };
-}) => {
-  const { id, product_id, company_id, data,req } = payload;
-
-  const variant = await ProductVariant.findOne({
-    _id: id,
-    product_id,
-    company_id,
-  });
-  if (!variant) throw new AppError("Variant not found", 404);
-
-  // sku uniqueness check if changing
-  if (data.sku && data.sku !== variant.sku) {
-    await assertUniqVariantSku(data.sku, company_id, id);
-    variant.sku = data.sku;
-  }
-
-  if (data.attributes !== undefined) variant.attributes = data.attributes;
-  if (data.buying_price !== undefined) variant.buying_price = data.buying_price;
-  if (data.selling_price !== undefined)
-    variant.selling_price = data.selling_price;
-  if (data.stock !== undefined) variant.stock = data.stock;
-  if (data.low_stock_alert !== undefined)
-    variant.low_stock_alert = data.low_stock_alert;
-  if (data.is_active !== undefined) variant.is_active = data.is_active;
-
-  await variant.save(); // pre-save recalculates profit
-    auditLog({
-        req,
-        action: AUDIT_ACTIONS.VARIANT_UPDATED,
-        targetModel: "ProductVariant",
-        targetId: variant._id,
-        after: {
-            product_id: variant.product_id,
-        },
-      });
-  return variant;
-};
-
-// ─── Delete variant ───────────────────────────────────────
-export const deleteVariant = async (payload: {
-  id: string;
-  product_id: string;
-  company_id: mongoose.Types.ObjectId;
-  req: Request;
-}) => {
-  const { id, product_id, company_id ,req} = payload;
-
-  const variant = await ProductVariant.findOne({
-    _id: id,
-    product_id,
-    company_id,
-  });
-  if (!variant) throw new AppError("Variant not found", 404);
-
-  variant.is_active = false;
-  await variant.save();
-
-    auditLog({
-      req,
-      action: AUDIT_ACTIONS.VARIANT_DELETED,
-      targetModel: "ProductVariant",
-      targetId: variant._id,
-    });
-  return variant;
-};

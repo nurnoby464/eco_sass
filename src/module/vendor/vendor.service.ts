@@ -8,15 +8,18 @@ import { AUDIT_ACTIONS } from "../audit/audit.interface";
 import { Request } from "express";
 
 // ─── Create vendor ────────────────────────────────────────
-const createVendor = async (payload: {
-  company_id: mongoose.Types.ObjectId;
-  name: string;
-  phone: string;
-  email?: string | null;
-  address?: string | null;
-  createdBy: mongoose.Types.ObjectId;
-  req: Request;
-}) => {
+const createVendor = async (
+  payload: {
+    company_id: mongoose.Types.ObjectId;
+    name: string;
+    phone: string;
+    email?: string | null;
+    address?: string | null;
+    createdBy: mongoose.Types.ObjectId;
+  },
+  req: Request,
+) => {
+  const { company_id, createdBy, ...rest } = payload;
   // check duplicate phone within same company
   const existing = await Vendor.findOne({
     company_id: payload.company_id,
@@ -25,9 +28,11 @@ const createVendor = async (payload: {
   if (existing)
     throw new AppError("A vendor with this phone already exists", 409);
 
-  const vendor = await Vendor.create(payload);
+  const vendor = await Vendor.create(
+    sanitizeData({ ...rest, company_id, createdBy }),
+  );
   auditLog({
-    req: payload.req,
+    req,
     action: AUDIT_ACTIONS.VENDOR_CREATED,
     targetModel: "Vendor",
     targetId: vendor._id,

@@ -4,12 +4,9 @@ import { validate } from "../../middlewares/validate";
 import * as ProductController from "./product.controller";
 import {
   createProductSchema,
-  updateProductSchema,
-  createVariantSchema,
-  updateVariantSchema,
   productParamsSchema,
-  variantParamsSchema,
   productQuerySchema,
+  updateProductSchema,
 } from "./product.validation";
 import {
   authenticate,
@@ -63,39 +60,5 @@ router
   );
 
 // ── /api/products/:id/variants ────────────────────────────
-router
-  .route("/:id/variants")
-  .get(
-    validate({ params: productParamsSchema }),
-    authenticate,
-    verifySession,
-    guard("super_admin", "admin", "inventory"),
-    ProductController.getVariants,
-  )
-  .post(
-    validate({ params: productParamsSchema, body: createVariantSchema }),
-    authenticate,
-    verifySession,
-    guard("super_admin", "admin", "inventory"),
-    ProductController.createVariant,
-  );
-
-// ── /api/products/:id/variants/:variantId ─────────────────
-router
-  .route("/:id/variants/:variantId")
-  .patch(
-    validate({ params: variantParamsSchema, body: updateVariantSchema }),
-    authenticate,
-    verifySession,
-    guard("super_admin", "admin", "inventory"),
-    ProductController.updateVariant,
-  )
-  .delete(
-    validate({ params: variantParamsSchema }),
-    authenticate,
-    verifySession,
-    guard("super_admin", "admin", "inventory"),
-    ProductController.deleteVariant,
-  );
 
 export const ProductRoutes = router;

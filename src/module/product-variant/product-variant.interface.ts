@@ -1,8 +1,8 @@
 import mongoose, { Document } from "mongoose";
 
 export interface IAttribute {
-  key: string; // "size" | "color" | "material" | anything
-  value: string; // "M"    | "Red"   | "Cotton"   | anything
+  key: string; // "color" | "size" | "material" | anything
+  value: string; // "Orange" | "M" | "Cotton" | anything
 }
 
 export interface IProductVariant {
@@ -11,11 +11,13 @@ export interface IProductVariant {
 
   attributes: IAttribute[];
 
-  sku: string;
+  sku: string; // auto-generated from parent SKU + attributes
+  image: string | null; // ← NEW: colour/variant-specific photo
+
   buying_price: number;
   selling_price: number;
-  profit: number;
-  profit_margin: number;
+  profit: number; // auto
+  profit_margin: number; // auto
 
   stock: number;
   low_stock_alert: number;

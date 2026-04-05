@@ -74,6 +74,9 @@ export const createCategory = async (payload: {
     targetId: category._id,
     after: {
       name: category.name,
+      path: category.path,
+      depth: category.depth,
+      image: category.image,
     },
   });
 
