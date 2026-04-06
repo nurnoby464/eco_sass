@@ -17,25 +17,7 @@ export const createPurchase = asyncHandler(
       { ...(req.body as CreatePurchaseInput), company_id, createdBy },
       req,
     );
-    if (!purchase) {
-      return ApiResponse.error(res, "Failed to create purchase");
-    }
-
-    auditLog({
-      req,
-      action: AUDIT_ACTIONS.PURCHASE_CREATED,
-      targetModel: "Purchase",
-      targetId: purchase._id,
-      after: {
-        vendor_id: purchase.vendor_id,
-        total_amount: purchase.total_amount,
-        paid_amount: purchase.paid_amount,
-        due_amount: purchase.due_amount,
-        status: purchase.status,
-        items_count: purchase.items.length,
-      },
-    });
-
+    
     return ApiResponse.created(res, purchase, "Purchase created successfully");
   },
 );

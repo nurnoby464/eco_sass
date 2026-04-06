@@ -84,3 +84,4 @@ export const productQuerySchema = z.object({
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type ListProductQuery = z.infer<typeof createProductSchema>;
+export type GetProductQuery = z.infer<typeof productQuerySchema>;

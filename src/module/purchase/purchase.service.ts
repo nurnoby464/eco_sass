@@ -49,10 +49,10 @@ function buildSlug(name: string): string {
 // ─── Upsert helpers ───────────────────────────────────────────────────────────
 
 async function upsertCategory(
-  name      : string,
+  name: string,
   company_id: mongoose.Types.ObjectId,
-  createdBy : mongoose.Types.ObjectId,
-  session   : mongoose.ClientSession
+  createdBy: mongoose.Types.ObjectId,
+  session: mongoose.ClientSession,
 ): Promise<mongoose.Types.ObjectId> {
   const existing = await Category.findOne({
     company_id,
@@ -60,63 +60,74 @@ async function upsertCategory(
   })
     .session(session)
     .lean<any>();
- 
+
   if (existing) return existing._id;
- 
+
   const [created] = await Category.create(
-    [sanitizeData({ company_id, createdBy, name: name.trim(), slug: buildSlug(name) })],
-    { session }
+    [
+      sanitizeData({
+        company_id,
+        createdBy,
+        name: name.trim(),
+        slug: buildSlug(name),
+      }),
+    ],
+    { session },
   );
-  if(!created) throw new AppError("Failed to create category", 500);
+  if (!created) throw new AppError("Failed to create category", 500);
   return created._id;
 }
 
 async function upsertProduct(
   opts: {
-    name         : string;
-    category_id  : mongoose.Types.ObjectId;
-    vendor_id    : mongoose.Types.ObjectId;
-    company_id   : mongoose.Types.ObjectId;
-    buying_price : number;
+    name: string;
+    category_id: mongoose.Types.ObjectId;
+    vendor_id: mongoose.Types.ObjectId;
+    company_id: mongoose.Types.ObjectId;
+    buying_price: number;
     selling_price: number;
-    createdBy    : mongoose.Types.ObjectId;
+    createdBy: mongoose.Types.ObjectId;
   },
-  session: mongoose.ClientSession
+  session: mongoose.ClientSession,
 ): Promise<{ product_id: mongoose.Types.ObjectId; product_sku: string }> {
   const existing = await Product.findOne({
-    company_id : opts.company_id,
+    company_id: opts.company_id,
     category_id: opts.category_id,
-    name       : { $regex: `^${opts.name.trim()}$`, $options: "i" },
+    name: { $regex: `^${opts.name.trim()}$`, $options: "i" },
   })
     .session(session)
     .lean<any>();
- 
+
   if (existing) return { product_id: existing._id, product_sku: existing.sku };
- 
+
   // Build SKU here in the service — do NOT rely on pre-save hook
   // because the hook runs Product.findById() without the session
   // and can't see documents created inside this transaction.
-  const baseSku = opts.name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 12);
-  const sku     = `${baseSku}-${Date.now().toString().slice(-5)}`; // e.g. "COTTON-SHIRT-93201"
- 
+  const baseSku = opts.name
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .slice(0, 12);
+  const sku = `${baseSku}-${Date.now().toString().slice(-5)}`; // e.g. "COTTON-SHIRT-93201"
+
   const [created] = await Product.create(
     [
       {
-        company_id   : opts.company_id,
-        category_id  : opts.category_id,
-        vendor_id    : opts.vendor_id,
-        name         : opts.name.trim(),
-        slug         : buildSlug(opts.name) + "-" + Date.now(),
+        company_id: opts.company_id,
+        category_id: opts.category_id,
+        vendor_id: opts.vendor_id,
+        name: opts.name.trim(),
+        slug: buildSlug(opts.name) + "-" + Date.now(),
         sku,
-        buying_price : opts.buying_price,
+        buying_price: opts.buying_price,
         selling_price: opts.selling_price,
-        has_variants : true,
-        stock        : 0,
-        is_active    : true,
-        createdBy    : opts.createdBy,
+        has_variants: true,
+        stock: 0,
+        is_active: true,
+        createdBy: opts.createdBy,
       },
     ],
-    { session }
+    { session },
   );
   if (!created) throw new AppError("Failed to create product", 500);
   return { product_id: created._id, product_sku: created.sku };
@@ -124,17 +135,17 @@ async function upsertProduct(
 
 async function upsertVariant(
   opts: {
-    product_id     : mongoose.Types.ObjectId;
-    product_sku    : string;              // ← passed in from upsertProduct
-    company_id     : mongoose.Types.ObjectId;
-    color          : string;
-    size           : string;
-    buying_price   : number;
-    selling_price  : number;
-    quantity       : number;
+    product_id: mongoose.Types.ObjectId;
+    product_sku: string; // ← passed in from upsertProduct
+    company_id: mongoose.Types.ObjectId;
+    color: string;
+    size: string;
+    buying_price: number;
+    selling_price: number;
+    quantity: number;
     low_stock_alert: number;
   },
-  session: mongoose.ClientSession
+  session: mongoose.ClientSession,
 ): Promise<{ variant_id: mongoose.Types.ObjectId; sku: string }> {
   // Find existing variant by product + color + size
   const existing = await ProductVariant.findOne({
@@ -142,45 +153,59 @@ async function upsertVariant(
     company_id: opts.company_id,
     attributes: {
       $all: [
-        { $elemMatch: { key: "color", value: { $regex: `^${opts.color}$`, $options: "i" } } },
-        { $elemMatch: { key: "size",  value: { $regex: `^${opts.size}$`,  $options: "i" } } },
+        {
+          $elemMatch: {
+            key: "color",
+            value: { $regex: `^${opts.color}$`, $options: "i" },
+          },
+        },
+        {
+          $elemMatch: {
+            key: "size",
+            value: { $regex: `^${opts.size}$`, $options: "i" },
+          },
+        },
       ],
     },
   }).session(session);
- 
+
   if (existing) {
-    existing.buying_price  = opts.buying_price;
+    existing.buying_price = opts.buying_price;
     existing.selling_price = opts.selling_price;
-    existing.stock        += opts.quantity;
+    existing.stock += opts.quantity;
     await existing.save({ session });
     return { variant_id: existing._id, sku: existing.sku };
   }
- 
+
   // Build variant SKU here — NOT in pre-save hook.
   // Same reason: pre-save hook calls Product.findById() without session
   // and the product is invisible inside an uncommitted transaction.
-  const clean  = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 8);
+  const clean = (s: string) =>
+    s
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "-")
+      .slice(0, 8);
   const varSku = `${opts.product_sku}-${clean(opts.color)}-${clean(opts.size)}`;
   // e.g. "COTTON-SHIRT-93201-ORANGE-M"
- 
+
   const [created] = await ProductVariant.create(
     [
       {
-        product_id     : opts.product_id,
-        company_id     : opts.company_id,
-        sku            : varSku,
-        attributes     : [
+        product_id: opts.product_id,
+        company_id: opts.company_id,
+        sku: varSku,
+        attributes: [
           { key: "color", value: opts.color.trim() },
-          { key: "size",  value: opts.size.trim()  },
+          { key: "size", value: opts.size.trim() },
         ],
-        buying_price   : opts.buying_price,
-        selling_price  : opts.selling_price,
-        stock          : opts.quantity,
+        buying_price: opts.buying_price,
+        selling_price: opts.selling_price,
+        stock: opts.quantity,
         low_stock_alert: opts.low_stock_alert,
-        is_active      : true,
+        is_active: true,
       },
     ],
-    { session }
+    { session },
   );
   if (!created) throw new AppError("Failed to create product variant", 500);
   return { variant_id: created._id, sku: created.sku };
@@ -268,13 +293,17 @@ export const createPurchase = async (
       const total_amount = round2(
         resolvedItems.reduce((sum, i) => sum + i.total, 0),
       );
+      const product_ids = [
+        ...new Set(resolvedItems.map((i) => i.product_id.toString())),
+      ].map((id) => new mongoose.Types.ObjectId(id));
 
       const [created] = await Purchase.create(
         [
           {
             company_id,
             vendor_id: new mongoose.Types.ObjectId(vendor_id),
-            items: resolvedItems,
+            product_ids,
+            item_count: resolvedItems?.length,
             total_amount,
             paid_amount: paid_amount ?? 0,
             purchase_date: purchase_date ? new Date(purchase_date) : new Date(),
@@ -287,6 +316,8 @@ export const createPurchase = async (
 
       purchase = created;
     });
+    // ── Guard before auditLog ──────────────────────────────────
+    if (!purchase) throw new AppError("Failed to create purchase", 500);
 
     auditLog({
       req,
@@ -296,8 +327,11 @@ export const createPurchase = async (
       after: {
         vendor_name: vendor.name,
         total_amount: purchase.total_amount,
-        item_count: items.length,
+        item_count: purchase.item_count, // ← use purchase.item_count, not items.length
         status: purchase.status,
+        total_paid: purchase.paid_amount,
+        due_amount: purchase.due_amount,
+
       },
     });
 

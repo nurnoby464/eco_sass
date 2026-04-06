@@ -31,7 +31,7 @@ export class ApiResponse {
     return res.status(statusCode).json({
       success: false,
       message,
-      errors: errors || null,
+      errors: Array.isArray(errors) ? errors : null,
     });
   }
 
@@ -42,8 +42,9 @@ export class ApiResponse {
     total: number,
     page: number,
     limit: number,
-
   ) {
+    const safeLimit = limit || 1;
+
     return res.status(200).json({
       success: true,
       message,
@@ -52,12 +53,10 @@ export class ApiResponse {
         total,
         page,
         limit,
-        // totalPages: Math.ceil(total / limit),
-        totalPages: Math.floor(total / limit),
-        hasNext: page < Math.floor(total / limit),
+        totalPages: Math.ceil(total / safeLimit),
+        hasNext: page < Math.ceil(total / safeLimit),
         hasPrev: page > 1,
       },
-      
     });
   }
 }

@@ -16,6 +16,7 @@ import { CategoryRoutes } from "./module/category/category.route";
 import { ProductRoutes } from "./module/product/product.route";
 import { PurchaseRoute } from "./module/purchase/purchase.route";
 import { ProductVariantRoute } from "./module/product-variant/product-variant.route";
+import PublicRoute from "./module/public/public.route";
 
 // routes
 // import authRoutes from './modules/auth/auth.routes';
@@ -33,6 +34,9 @@ app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// public route
+app.use("/api/v1/public", PublicRoute)
 
 // Routes
 app.use("/api/v1/auth", AuthRoutes);

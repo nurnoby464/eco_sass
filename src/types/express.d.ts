@@ -17,6 +17,14 @@ declare global {
         exp?: number;
       };
       validatedQuery : Record<string, unknown>;
+      company?:{
+        _id: mongoose.Types.ObjectId;
+        company_name: string;
+        logo: string | null;
+        subdomain: string | null;
+        domain: string | null;
+        status: "active" | "inactive" | "suspended";
+      }
     }
   }
 }

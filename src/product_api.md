@@ -37,3 +37,27 @@ All variants of a product GET /api/v1/products/<PRODUCT_ID>/variants
 Vendor with outstanding dues GET /api/v1/vendors?sort_by=due&sort_order=desc
 
 Purchases by date range GET /api/v1/purchases?from_date=2026-04-01&to_date=2026-04-30&status=pending
+
+// config/api.js — set once
+
+const SUBDOMAIN = "rubban";
+const BASE_URL  = "https://multi-tenency.vercel.app/api/v1/public";
+
+// ── Wrapper around fetch ──────────────────────────────────
+export const publicApi = (endpoint, options = {}) => {
+  return fetch(`${BASE_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      "Content-Type" : "application/json",
+      "x-subdomain"  : SUBDOMAIN,           // ← always sent
+      ...options.headers,                   // ← allow override
+    },
+  });
+};
+
+// config/api.js — set when app loads
+
+const SUBDOMAIN = "rubban"; // hardcode per company frontend
+
+axios.defaults.baseURL = "https://multi-tenency.vercel.app/api/v1/public";
+axios.defaults.headers.common["x-subdomain"] = SUBDOMAIN;
