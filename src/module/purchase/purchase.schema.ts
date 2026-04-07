@@ -47,53 +47,8 @@ PurchaseSchema.pre("save", function () {
   }
 });
 
-// ── After save: update stock + vendor financials ──────────────────────────────
-//
-//   This fires ONLY on new purchases (isNew).
-//   It checks company.settings.auto_confirm_purchase:
-//     true  → update stock immediately (small company, single user)
-//     false → do NOT update stock yet; warehouse staff confirms later
-//
-PurchaseSchema.post("save", async function (doc) {
-  if (!this.isNew) return; // only on creation, not on paid_amount updates
 
-  try {
-    // ── 1. Check company auto_confirm setting ───────────────────────────────
-    // const company = await Company.findById(doc.company_id).lean<any>();
-    // const autoConfirm = company?.settings?.auto_confirm_purchase ?? true;
-    // default true — safe for single-user companies
 
-    // if (autoConfirm) {
-    //   // ── 2. Update stock for every line item ────────────────────────────────
-    //   for (const item of doc.items) {
-    //     if (item.variant_id) {
-    //       // Product with variants → update variant stock
-    //       await ProductVariant.findByIdAndUpdate(item.variant_id, {
-    //         $inc: { stock: item.quantity },
-    //       });
-    //     } else {
-    //       // Simple product (no variants) → update product stock
-    //       await Product.findByIdAndUpdate(item.product_id, {
-    //         $inc: { stock: item.quantity },
-    //       });
-    //     }
-    //   }
-    // }
-
-    // ── 3. Always update vendor financials ─────────────────────────────────
-    //    (regardless of auto_confirm — the debt is created the moment you buy)
-    await Vendor.findByIdAndUpdate(doc.vendor_id, {
-      $inc: {
-        total_payable: doc.total_amount,
-        due: doc.due_amount,
-        total_paid: doc.paid_amount,
-      },
-    });
-  } catch (err) {
-    // post-save hooks can't abort the transaction, but we log so nothing is silent
-    console.error("[Purchase post-save] stock/vendor update failed:", err);
-  }
-});
 
 // ── Indexes ───────────────────────────────────────────────────────────────────
 PurchaseSchema.index({ company_id: 1, createdAt: -1 });
