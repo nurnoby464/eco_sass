@@ -1,12 +1,13 @@
 import jwt, { Secret } from "jsonwebtoken";
 import mongoose, { ObjectId } from "mongoose";
 import type { StringValue } from "ms";
+import { UserRole } from "../module/super_admin/super_admin.interface";
 
 export interface ITokenPayload {
   _id: mongoose.Types.ObjectId;
   email: string;
   name: string;
-  role: string;
+  role: UserRole;
   company_id: mongoose.Types.ObjectId | null;
   sessionId: string;
   passwordChangedAt: number | null;

@@ -1,0 +1,44 @@
+import mongoose from "mongoose";
+import { Request } from "express";
+import { CreateVariantInput, UpdateVariantInput } from "./product-variant.validation";
+export declare const createVariant: (payload: CreateVariantInput & {
+    product_id: string;
+    company_id: mongoose.Types.ObjectId;
+}, req: Request) => Promise<mongoose.Document<unknown, {}, import("./product-variant.interface").IProductVariantDocument, {}, mongoose.DefaultSchemaOptions> & import("./product-variant.interface").IProductVariantDocument & Required<{
+    _id: mongoose.Types.ObjectId;
+}> & {
+    __v: number;
+} & {
+    id: string;
+}>;
+export declare const getVariants: (payload: {
+    product_id: string;
+    company_id: mongoose.Types.ObjectId;
+}) => Promise<(import("./product-variant.interface").IProductVariantDocument & Required<{
+    _id: mongoose.Types.ObjectId;
+}> & {
+    __v: number;
+})[]>;
+export declare const getVariantById: (variantId: string, company_id: mongoose.Types.ObjectId) => Promise<import("./product-variant.interface").IProductVariantDocument & Required<{
+    _id: mongoose.Types.ObjectId;
+}> & {
+    __v: number;
+}>;
+export declare const updateVariant: (variantId: string, company_id: mongoose.Types.ObjectId, payload: UpdateVariantInput, req: Request) => Promise<import("./product-variant.interface").IProductVariantDocument & Required<{
+    _id: mongoose.Types.ObjectId;
+}> & {
+    __v: number;
+}>;
+export declare const deleteVariant: (payload: {
+    id: string;
+    product_id: string;
+    company_id: mongoose.Types.ObjectId;
+    req: Request;
+}) => Promise<mongoose.Document<unknown, {}, import("./product-variant.interface").IProductVariantDocument, {}, mongoose.DefaultSchemaOptions> & import("./product-variant.interface").IProductVariantDocument & Required<{
+    _id: mongoose.Types.ObjectId;
+}> & {
+    __v: number;
+} & {
+    id: string;
+}>;
+//# sourceMappingURL=product-variant.service.d.ts.map

@@ -10,4 +10,16 @@ export declare class AppError extends Error {
     readonly isOperational: boolean;
     constructor(message: string, statusCode?: number, isOperational?: boolean);
 }
+export interface ISessionPublic {
+    sessionId: string;
+    userId: string;
+    user_agent: string | null;
+    ip: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+}
+export declare class SessionLimitError extends AppError {
+    sessions: ISessionPublic[];
+    constructor(sessions: ISessionPublic[]);
+}
 //# sourceMappingURL=appError.d.ts.map

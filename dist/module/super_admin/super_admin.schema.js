@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = require("mongoose");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const session_schema_1 = __importDefault(require("../model/schema/session.schema"));
+const auth_schema_1 = __importDefault(require("../auth/auth.schema"));
 const UserSchema = new mongoose_1.Schema({
     name: {
         type: String,
@@ -26,6 +26,11 @@ const UserSchema = new mongoose_1.Schema({
         type: String,
         required: [true, "Password is required"],
         minlength: [8, "Password must be at least 8 characters"],
+        select: false,
+    },
+    passwordChangedAt: {
+        type: Date,
+        default: null,
         select: false,
     },
     role: {
@@ -66,7 +71,6 @@ const UserSchema = new mongoose_1.Schema({
     timestamps: true,
 });
 // ─── Indexes ─────────────────────────────────────────────
-UserSchema.index({ email: 1 });
 UserSchema.index({ company_id: 1, role: 1 });
 UserSchema.index({ createdBy: 1 });
 // ─── Virtual: sessions ────────────────────────────────────
@@ -92,7 +96,7 @@ UserSchema.methods.comparePassword = async function (plainPassword) {
 // Call this on logout-all or password change to kill every active session.
 UserSchema.methods.clearSessions = async function () {
     // const Session = (await import("./session.schema")).default;
-    await session_schema_1.default.updateMany({ userId: this._id, valid: true }, { valid: false });
+    await auth_schema_1.default.updateMany({ userId: this._id, valid: true }, { valid: false });
 };
 // ─── toJSON: strip sensitive fields ──────────────────────
 UserSchema.set("toJSON", {

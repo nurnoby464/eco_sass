@@ -1,20 +1,22 @@
 import { z } from "zod";
+import { createNewCompanySchema } from "../company/company.validation";
 export declare const createUserSchema: z.ZodObject<{
     name: z.ZodString;
-    email: z.ZodString;
+    email: z.ZodEmail;
     password: z.ZodString;
     role: z.ZodEnum<{
-        super_admin: "super_admin";
-        admin: "admin";
-        account: "account";
-        site_management: "site_management";
-        inventory: "inventory";
-        sales: "sales";
         report: "report";
+        sales: "sales";
+        inventory: "inventory";
+        site_management: "site_management";
+        account: "account";
+        admin: "admin";
+        super_admin: "super_admin";
     }>;
     company_id: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     is_active: z.ZodOptional<z.ZodBoolean>;
     createdBy: z.ZodNullable<z.ZodOptional<z.ZodString>>;
 }, z.core.$strip>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
+export type CreateNewCompanyInput = z.infer<typeof createNewCompanySchema>;
 //# sourceMappingURL=super_admin.validation.d.ts.map

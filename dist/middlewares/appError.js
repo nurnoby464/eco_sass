@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AppError = void 0;
+exports.SessionLimitError = exports.AppError = void 0;
 /**
  * AppError — throw this anywhere in your app.
  * The global error handler reads statusCode, message, and isOperational.
@@ -22,4 +22,12 @@ class AppError extends Error {
     }
 }
 exports.AppError = AppError;
+class SessionLimitError extends AppError {
+    sessions;
+    constructor(sessions) {
+        super("Session limit reached. Please remove a session to continue.", 409);
+        this.sessions = sessions;
+    }
+}
+exports.SessionLimitError = SessionLimitError;
 //# sourceMappingURL=appError.js.map

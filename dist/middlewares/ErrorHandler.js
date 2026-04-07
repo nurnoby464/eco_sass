@@ -4,8 +4,7 @@ exports.notFoundHandler = exports.globalErrorHandler = void 0;
 const mongoose_1 = require("mongoose");
 const mongodb_1 = require("mongodb");
 const ApiResponse_1 = require("../utils/ApiResponse");
-const appError_1 = require("./appError");
-// ─── Mongoose / MongoDB error normalizers ─────────────────
+const appError_1 = require("./appError"); // ← import SessionLimitError
 function handleCastError(err) {
     return new appError_1.AppError(`Invalid ${err.path}: "${err.value}"`, 400);
 }
@@ -18,12 +17,19 @@ function handleDuplicateKeyError(err) {
     const value = err.keyValue?.[field];
     return new appError_1.AppError(`${field} "${value}" is already taken`, 409);
 }
-// ─── Global error handler ─────────────────────────────────
-// Must have exactly 4 parameters so Express recognizes it as an error handler.
-const globalErrorHandler = (err, req, res, 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-_next) => {
-    // ── 1. Normalize third-party errors into AppError ────────
+const globalErrorHandler = (err, req, res, _next) => {
+    // ── 0. SessionLimitError — MUST be before AppError check ──
+    // SessionLimitError extends AppError so if AppError is checked first
+    // it matches and sessions array is never sent
+    if (err instanceof appError_1.SessionLimitError) {
+        return res.status(409).json({
+            success: false,
+            message: err.message,
+            requiresSessionCleanup: true,
+            sessions: err.sessions,
+        });
+    }
+    // ── 1. Normalize third-party errors into AppError ─────────
     let error;
     if (err instanceof appError_1.AppError) {
         error = err;
@@ -38,7 +44,6 @@ _next) => {
         error = handleDuplicateKeyError(err);
     }
     else if (err instanceof Error) {
-        // Unknown programmer error — don't leak internals in production
         error = new appError_1.AppError(process.env.NODE_ENV === 'production'
             ? 'Something went wrong'
             : err.message, 500, false);
@@ -46,16 +51,14 @@ _next) => {
     else {
         error = new appError_1.AppError('Something went wrong', 500, false);
     }
-    // ── 2. Log non-operational (bug) errors ──────────────────
+    // ── 2. Log non-operational errors ─────────────────────────
     if (!error.isOperational) {
         console.error('💥 UNHANDLED ERROR:', err);
-        // Plug in your logger here: logger.error(err)
     }
-    // ── 3. Send response ─────────────────────────────────────
+    // ── 3. Send response ──────────────────────────────────────
     return ApiResponse_1.ApiResponse.error(res, error.message, error.statusCode);
 };
 exports.globalErrorHandler = globalErrorHandler;
-// ─── 404 handler (mount before globalErrorHandler) ────────
 const notFoundHandler = (req, _res, next) => {
     next(new appError_1.AppError(`Route ${req.method} ${req.originalUrl} not found`, 404));
 };

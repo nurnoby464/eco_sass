@@ -4,6 +4,7 @@ export interface IUser {
     name: string;
     email: string;
     password: string;
+    passwordChangedAt?: Date | null;
     role: UserRole;
     company_id: mongoose.Types.ObjectId | null;
     is_active: boolean;

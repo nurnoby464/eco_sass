@@ -4,7 +4,7 @@ exports.createUserSchema = void 0;
 const zod_1 = require("zod");
 exports.createUserSchema = zod_1.z.object({
     name: zod_1.z.string().trim().min(2, "Name must be at least 2 characters"),
-    email: zod_1.z.string().email("Please enter a valid email").toLowerCase().trim(),
+    email: zod_1.z.email("Please enter a valid email").toLowerCase().trim(),
     password: zod_1.z.string().min(8, "Password must be at least 8 characters"),
     role: zod_1.z.enum([
         "super_admin",

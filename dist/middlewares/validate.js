@@ -38,11 +38,11 @@ const validate = (schemas) => {
                 }));
             }
             else {
-                req.query = result.data; // replace with clean validated data
+                req.validatedQuery = result.data;
             }
         }
         // ─── If any errors — stop here ────────────────────────
-        if (errors.length > 0) {
+        if (errors?.length > 0) {
             return ApiResponse_1.ApiResponse.error(res, 'Validation failed', 400, errors);
         }
         next();
