@@ -3,16 +3,19 @@ import { Request, Response } from "express";
 import { AuthServices } from "./auth.service";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { AppError } from "../../middlewares/appError";
+import { Types } from "mongoose";
 const COOKIE_OPTIONS = {
-  httpOnly: true, // JS can't read it
-  secure: process.env.NODE_ENV === "production", // HTTPS only in prod
-  sameSite: "strict" as const, // CSRF protection
-  maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days in ms
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: (process.env.NODE_ENV === "production" ? "strict" : "lax") as
+    | "strict"
+    | "lax",
+  maxAge: 1000 * 60 * 60 * 24 * 30,
 };
 
 const login = asyncHandler(async (req: Request, res: Response) => {
-  const result = await AuthServices.login(req.body, req);
-  res.cookie("refreshToken", result.refreshToken, COOKIE_OPTIONS);
+  const { refreshToken, ...result } = await AuthServices.login(req.body, req);
+  res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
   return ApiResponse.success(res, result, "Login successfully");
 });
 
@@ -54,10 +57,17 @@ const updatePassword = asyncHandler(async (req: Request, res: Response) => {
   return ApiResponse.success(res, null, result.message);
 });
 
+export const registerCustomer = async (req: Request, res: Response) => {
+  const company_id = new Types.ObjectId(req.company?._id); // set by resolveCompany middleware
+  const user = await AuthServices.registerCustomer(company_id, req.body);
+  return ApiResponse.created(res, user, "Registration Successfully");
+};
+
 export const AuthController = {
   login,
   logout,
   refresh,
   removeSession,
   updatePassword,
+  registerCustomer
 };

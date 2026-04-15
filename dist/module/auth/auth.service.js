@@ -12,7 +12,7 @@ const jwtHelper_1 = require("../../utils/jwtHelper");
 const super_admin_schema_1 = __importDefault(require("../super_admin/super_admin.schema"));
 const auth_schema_1 = __importDefault(require("./auth.schema"));
 const login = async (payload, req) => {
-    const MAX_SESSIONS = 5;
+    const MAX_SESSIONS = 6;
     const { email, password } = payload;
     const existing = await super_admin_schema_1.default.findOne({ email, is_active: true }).select("+password");
     if (!existing) {
@@ -58,7 +58,7 @@ const login = async (payload, req) => {
         },
     }, {
         upsert: true,
-        new: true,
+        returnDocument: "after",
         runValidators: true,
     });
     if (!session) {
@@ -83,7 +83,7 @@ const login = async (payload, req) => {
         secret: jwt_config_1.jwtConfig.refresh.secret,
         expiresIn: jwt_config_1.jwtConfig.refresh.expiresIn,
     });
-    const result = await super_admin_schema_1.default.findByIdAndUpdate(existing._id, { last_login: new Date() }, { new: true, runValidators: true });
+    const result = await super_admin_schema_1.default.findByIdAndUpdate(existing._id, { last_login: new Date() }, { returnDocument: "after", runValidators: true });
     if (!result) {
         throw new appError_2.AppError("Last login not updated");
     }
@@ -185,11 +185,36 @@ const updatePassword = async (payload) => {
         message: "Password updated. All other sessions have been logged out.",
     };
 };
+const registerCustomer = async (company_id, input) => {
+    const { name, phone, email, password } = input;
+    // 1. check duplicate phone under same company
+    const existing = await super_admin_schema_1.default.findOne({
+        company_id,
+        email,
+        role: "customer",
+    });
+    if (existing) {
+        throw new appError_2.AppError("This email already registered", 409);
+    }
+    // 3. create user — NO customer CRM doc yet
+    const user = await super_admin_schema_1.default.create({
+        company_id,
+        name,
+        email,
+        password,
+        role: "customer",
+        is_active: true,
+    });
+    // 4. strip password before returning
+    const { password: _, ...safeUser } = user.toObject();
+    return safeUser;
+};
 exports.AuthServices = {
     login,
     logout,
     refresh,
     removeSession,
     updatePassword,
+    registerCustomer
 };
 //# sourceMappingURL=auth.service.js.map

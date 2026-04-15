@@ -10,10 +10,18 @@ import {
   authenticate,
   verifySession,
 } from "../../middlewares/AuthenticateHelper";
+import { registerCustomerSchema } from "../super_admin/super_admin.validation";
+import { companyIdentifier } from "../../middlewares/companyIdentifier";
 const router = express.Router();
 // public
 router.post("/login", validate({ body: loginSchema }), AuthController.login);
 router.post("/refresh", AuthController.refresh);
+router.post(
+  "/register",
+  validate({ body: registerCustomerSchema }),
+  companyIdentifier,
+  AuthController.registerCustomer,
+);
 router.delete(
   "/session/:userId/:sessionId",
   validate({ params: sessionParamsSchema }),

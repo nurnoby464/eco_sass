@@ -11,6 +11,7 @@ import User from "../super_admin/super_admin.schema";
 import { Secret } from "jsonwebtoken";
 import Session from "./auth.schema";
 import { enforceSessionLimit } from "../../utils/sessionHelper";
+import { RegisterCustomerInput } from "../super_admin/super_admin.validation";
 
 interface ILogin {
   email: string;
@@ -23,7 +24,7 @@ interface IUpdatePassword {
   sessionId: string;
 }
 const login = async (payload: ILogin, req: Request) => {
-  const MAX_SESSIONS = 5;
+  const MAX_SESSIONS = 6;
   const { email, password } = payload;
   const existing = await User.findOne({ email, is_active: true }).select(
     "+password",
@@ -75,7 +76,7 @@ const login = async (payload: ILogin, req: Request) => {
     },
     {
       upsert: true,
-      new: true,
+      returnDocument:"after",
       runValidators: true,
     },
   );
@@ -104,7 +105,7 @@ const login = async (payload: ILogin, req: Request) => {
   const result = await User.findByIdAndUpdate(
     existing._id,
     { last_login: new Date() },
-    { new: true, runValidators: true },
+    { returnDocument:"after", runValidators: true },
   );
   if (!result) {
     throw new AppError("Last login not updated");
@@ -212,10 +213,44 @@ const updatePassword = async (payload: IUpdatePassword) => {
   };
 };
 
+ const registerCustomer = async (
+  company_id: Types.ObjectId,
+  input: RegisterCustomerInput
+) => {
+  const { name, phone, email, password } = input;
+
+  // 1. check duplicate phone under same company
+  const existing = await User.findOne({
+    company_id,
+    email,
+    role: "customer",
+  });
+
+  if (existing) {
+    throw new AppError("This email already registered", 409);
+  }
+
+  // 3. create user — NO customer CRM doc yet
+  const user = await User.create({
+    company_id,
+    name,
+    email,
+    password,
+    role: "customer",
+    is_active: true,
+  });
+
+  // 4. strip password before returning
+  const { password: _, ...safeUser } = user.toObject();
+
+  return safeUser;
+};
+
 export const AuthServices = {
   login,
   logout,
   refresh,
   removeSession,
   updatePassword,
+  registerCustomer
 };

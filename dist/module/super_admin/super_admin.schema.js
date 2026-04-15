@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = require("mongoose");
+const super_admin_interface_1 = require("./super_admin.interface");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const auth_schema_1 = __importDefault(require("../auth/auth.schema"));
 const UserSchema = new mongoose_1.Schema({
@@ -22,6 +23,13 @@ const UserSchema = new mongoose_1.Schema({
         trim: true,
         match: [/^\S+@\S+\.\S+$/, "Please enter a valid email"],
     },
+    phone: {
+        type: String,
+        // default: null,
+        trim: true,
+        sparse: true, // unique but allows multiple nulls
+        unique: true,
+    },
     password: {
         type: String,
         required: [true, "Password is required"],
@@ -37,15 +45,7 @@ const UserSchema = new mongoose_1.Schema({
         type: String,
         required: [true, "Role is required"],
         enum: {
-            values: [
-                "super_admin",
-                "admin",
-                "account",
-                "site_management",
-                "inventory",
-                "sales",
-                "report",
-            ],
+            values: super_admin_interface_1.USER_ROLES, // ✅ runtime array
             message: "Invalid role: {VALUE}",
         },
     },
@@ -58,6 +58,10 @@ const UserSchema = new mongoose_1.Schema({
     is_active: {
         type: Boolean,
         default: true,
+    },
+    email_verified: {
+        type: Boolean,
+        default: false,
     },
     createdBy: {
         type: mongoose_1.Schema.Types.ObjectId,

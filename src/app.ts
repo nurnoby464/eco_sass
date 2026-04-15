@@ -17,6 +17,7 @@ import { ProductRoutes } from "./module/product/product.route";
 import { PurchaseRoute } from "./module/purchase/purchase.route";
 import { ProductVariantRoute } from "./module/product-variant/product-variant.route";
 import PublicRoute from "./module/public/public.route";
+import { AppError } from "./middlewares/appError";
 
 // routes
 // import authRoutes from './modules/auth/auth.routes';
@@ -26,17 +27,45 @@ import PublicRoute from "./module/public/public.route";
 // import publicRoutes from './modules/public/public.routes';
 
 const app: Application = express();
+const allowOrigin =
+  process.env.NODE_ENV === "production"
+    ? [
+        "https://your-app.vercel.app",
+        "https://your-app.herokuapp.com",
+        // add more production domains as needed
+      ]
+    : ["http://localhost:3000"];
 
 // Middlewares
 app.use(helmet());
-app.use(cors());
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowOrigin.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new AppError(`CORS blocked: ${origin}`));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-company-id",
+      "x-subdomain",
+    ],
+    exposedHeaders: ["X-Total-Count", "X-Total-Pages"],
+    credentials: true,
+  }),
+);
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // public route
-app.use("/api/v1/public", PublicRoute)
+app.use("/api/v1/public", PublicRoute);
 
 // Routes
 app.use("/api/v1/auth", AuthRoutes);

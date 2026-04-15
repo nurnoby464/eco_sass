@@ -19,6 +19,7 @@ const product_route_1 = require("./module/product/product.route");
 const purchase_route_1 = require("./module/purchase/purchase.route");
 const product_variant_route_1 = require("./module/product-variant/product-variant.route");
 const public_route_1 = __importDefault(require("./module/public/public.route"));
+const appError_1 = require("./middlewares/appError");
 // routes
 // import authRoutes from './modules/auth/auth.routes';
 // import adminRoutes from './modules/admin/admin.routes';
@@ -26,9 +27,36 @@ const public_route_1 = __importDefault(require("./module/public/public.route"));
 // import customerRoutes from './modules/customer/customer.routes';
 // import publicRoutes from './modules/public/public.routes';
 const app = (0, express_1.default)();
+const allowOrigin = process.env.NODE_ENV === "production"
+    ? [
+        "https://your-app.vercel.app",
+        "https://your-app.herokuapp.com",
+        // add more production domains as needed
+    ]
+    : ["http://localhost:3000"];
 // Middlewares
 app.use((0, helmet_1.default)());
-app.use((0, cors_1.default)());
+app.use((0, cors_1.default)({
+    origin: (origin, callback) => {
+        if (!origin)
+            return callback(null, true);
+        if (allowOrigin.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            callback(new appError_1.AppError(`CORS blocked: ${origin}`));
+        }
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "x-company-id",
+        "x-subdomain",
+    ],
+    exposedHeaders: ["X-Total-Count", "X-Total-Pages"],
+    credentials: true,
+}));
 app.use((0, morgan_1.default)("dev"));
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));

@@ -1,19 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AuthController = void 0;
+exports.AuthController = exports.registerCustomer = void 0;
 const asyncHandler_1 = require("../../utils/asyncHandler");
 const auth_service_1 = require("./auth.service");
 const ApiResponse_1 = require("../../utils/ApiResponse");
 const appError_1 = require("../../middlewares/appError");
+const mongoose_1 = require("mongoose");
 const COOKIE_OPTIONS = {
-    httpOnly: true, // JS can't read it
-    secure: process.env.NODE_ENV === "production", // HTTPS only in prod
-    sameSite: "strict", // CSRF protection
-    maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days in ms
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: (process.env.NODE_ENV === "production" ? "strict" : "lax"),
+    maxAge: 1000 * 60 * 60 * 24 * 30,
 };
 const login = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const result = await auth_service_1.AuthServices.login(req.body, req);
-    res.cookie("refreshToken", result.refreshToken, COOKIE_OPTIONS);
+    const { refreshToken, ...result } = await auth_service_1.AuthServices.login(req.body, req);
+    res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
     return ApiResponse_1.ApiResponse.success(res, result, "Login successfully");
 });
 // ─── Logout ───────────────────────────────────────────────
@@ -47,11 +48,18 @@ const updatePassword = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     });
     return ApiResponse_1.ApiResponse.success(res, null, result.message);
 });
+const registerCustomer = async (req, res) => {
+    const company_id = new mongoose_1.Types.ObjectId(req.company?._id); // set by resolveCompany middleware
+    const user = await auth_service_1.AuthServices.registerCustomer(company_id, req.body);
+    return ApiResponse_1.ApiResponse.created(res, user, "Registration Successfully");
+};
+exports.registerCustomer = registerCustomer;
 exports.AuthController = {
     login,
     logout,
     refresh,
     removeSession,
     updatePassword,
+    registerCustomer: exports.registerCustomer
 };
 //# sourceMappingURL=auth.controller.js.map

@@ -1,13 +1,16 @@
 import mongoose, { Document } from "mongoose";
-export type UserRole = "super_admin" | "admin" | "account" | "site_management" | "inventory" | "sales" | "report";
+export declare const USER_ROLES: readonly ["super_admin", "admin", "account", "site_management", "inventory", "sales", "report", "customer"];
+export type UserRole = (typeof USER_ROLES)[number];
 export interface IUser {
     name: string;
     email: string;
+    phone: string | null;
     password: string;
     passwordChangedAt?: Date | null;
     role: UserRole;
     company_id: mongoose.Types.ObjectId | null;
     is_active: boolean;
+    email_verified: boolean;
     createdBy: mongoose.Types.ObjectId | null;
     last_login: Date | null;
     reset_token: string | null;

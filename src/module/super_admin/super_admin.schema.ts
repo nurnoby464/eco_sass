@@ -1,5 +1,5 @@
 import { model, Schema } from "mongoose";
-import { IUserDocument } from "./super_admin.interface";
+import { IUserDocument, USER_ROLES } from "./super_admin.interface";
 import bcrypt from "bcryptjs";
 import Session from "../auth/auth.schema";
 
@@ -21,6 +21,13 @@ const UserSchema = new Schema<IUserDocument>(
       trim: true,
       match: [/^\S+@\S+\.\S+$/, "Please enter a valid email"],
     },
+    phone: {
+      type: String,
+      // default: null,
+      trim: true,
+      sparse: true, // unique but allows multiple nulls
+      unique: true,
+    },
 
     password: {
       type: String,
@@ -38,15 +45,7 @@ const UserSchema = new Schema<IUserDocument>(
       type: String,
       required: [true, "Role is required"],
       enum: {
-        values: [
-          "super_admin",
-          "admin",
-          "account",
-          "site_management",
-          "inventory",
-          "sales",
-          "report",
-        ],
+        values: USER_ROLES, // ✅ runtime array
         message: "Invalid role: {VALUE}",
       },
     },
@@ -61,6 +60,10 @@ const UserSchema = new Schema<IUserDocument>(
     is_active: {
       type: Boolean,
       default: true,
+    },
+    email_verified: {
+      type: Boolean,
+      default: false,
     },
 
     createdBy: {
