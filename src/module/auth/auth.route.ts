@@ -29,8 +29,8 @@ router.delete(
 );
 
 // protected
-router.use(authenticate);
 router.post("/logout", AuthController.logout);
+router.use(authenticate);
 router.use(verifySession);
 router.patch(
   "/update-password",

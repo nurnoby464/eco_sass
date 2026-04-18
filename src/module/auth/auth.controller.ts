@@ -22,7 +22,6 @@ const login = asyncHandler(async (req: Request, res: Response) => {
 // ─── Logout ───────────────────────────────────────────────
 const logout = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = req.cookies?.refreshToken;
-
   await AuthServices.logout(refreshToken);
 
   // clear the cookie

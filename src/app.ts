@@ -18,6 +18,7 @@ import { PurchaseRoute } from "./module/purchase/purchase.route";
 import { ProductVariantRoute } from "./module/product-variant/product-variant.route";
 import PublicRoute from "./module/public/public.route";
 import { AppError } from "./middlewares/appError";
+import { SaleRouter } from "./CRM/sales/sales.route";
 
 // routes
 // import authRoutes from './modules/auth/auth.routes';
@@ -76,6 +77,7 @@ app.use("/api/v1/category", CategoryRoutes);
 app.use("/api/v1/product", ProductRoutes);
 app.use("/api/v1/purchase", PurchaseRoute);
 app.use("/api/v1/product-variant", ProductVariantRoute);
+app.use("/api/v1/sales", SaleRouter);
 // app.use('/api/v1/customer', customerRoutes);
 // app.use('/api/v1/public',   publicRoutes);
 
