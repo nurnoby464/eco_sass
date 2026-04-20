@@ -1,24 +1,31 @@
 import { z } from "zod";
 declare const purchaseItemSchema: z.ZodObject<{
-    product_name: z.ZodString;
-    category: z.ZodString;
+    product_name: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
+    productId: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
+    categoryId: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
+    categoryName: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
     color: z.ZodString;
-    size: z.ZodString;
+    size: z.ZodDefault<z.ZodOptional<z.ZodString>>;
     unit_price: z.ZodNumber;
     selling_price: z.ZodNumber;
     quantity: z.ZodNumber;
     low_stock_alert: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
 }, z.core.$strip>;
 export declare const createPurchaseSchema: z.ZodObject<{
-    vendor_id: z.ZodString;
+    vendor_id: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
+    vendorName: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
+    vendorPhone: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
+    vendorEmail: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
     purchase_date: z.ZodOptional<z.ZodString>;
     paid_amount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
     note: z.ZodOptional<z.ZodString>;
     items: z.ZodArray<z.ZodObject<{
-        product_name: z.ZodString;
-        category: z.ZodString;
+        product_name: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
+        productId: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
+        categoryId: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
+        categoryName: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
         color: z.ZodString;
-        size: z.ZodString;
+        size: z.ZodDefault<z.ZodOptional<z.ZodString>>;
         unit_price: z.ZodNumber;
         selling_price: z.ZodNumber;
         quantity: z.ZodNumber;

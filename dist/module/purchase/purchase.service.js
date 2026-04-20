@@ -39,78 +39,203 @@ function buildVariantSku(productSku, color, size) {
         .toUpperCase()
         .replace(/[^A-Z0-9]+/g, "-")
         .slice(0, 8);
-    return `${productSku}-${clean(color)}-${clean(size)}`;
+    const sizePart = size.trim() ? `-${clean(size)}` : "";
+    return `${productSku}-${clean(color)}-${sizePart}`;
 }
 // variant attribute lookup key for Map
 function variantKey(productId, color, size) {
     return `${productId}|${color.trim().toLowerCase()}|${size.trim().toLowerCase()}`;
 }
-// ─── Stage 1: Bulk upsert categories ─────────────────────────────────────────
-async function bulkUpsertCategories(names, company_id, createdBy, session) {
-    const unique = [...new Set(names.map((n) => n.trim().toLowerCase()))];
-    const existing = await category_schema_1.default.find({
-        company_id,
-        name: { $in: unique.map((n) => new RegExp(`^${n}$`, "i")) },
-    })
-        .session(session)
-        .lean();
-    const map = new Map(existing.map((c) => [c.name.toLowerCase(), c._id]));
-    const missing = unique.filter((n) => !map.has(n));
-    if (missing.length > 0) {
-        const created = await category_schema_1.default.insertMany(missing.map((name) => (0, sanitizeData_1.sanitizeData)({
+// ─── Stage 0: Resolve or create vendor ───────────────────
+async function resolveVendor(payload, company_id, createdBy, session) {
+    // vendor_id provided → find existing
+    if (payload.vendor_id) {
+        const vendor = await vendor_schema_1.default.findOne({
+            _id: new mongoose_1.default.Types.ObjectId(payload.vendor_id),
             company_id,
-            createdBy,
-            name: name.trim(),
-            slug: buildSlug(name),
-        })), { session });
-        created.forEach((c) => map.set(c.name.toLowerCase(), c._id));
+            is_active: true,
+        })
+            .session(session)
+            .lean();
+        if (!vendor)
+            throw new appError_1.AppError("Vendor not found", 404);
+        return vendor;
+    }
+    // vendorName provided → create new vendor
+    if (payload.vendorName) {
+        // check duplicate phone under same company
+        if (payload.vendorPhone) {
+            const existing = await vendor_schema_1.default.findOne({
+                company_id,
+                phone: payload.vendorPhone,
+            })
+                .session(session)
+                .lean();
+            if (existing) {
+                throw new appError_1.AppError(`Vendor with phone ${payload.vendorPhone} already exists`, 409);
+            }
+        }
+        if (!payload.vendorPhone) {
+            throw new appError_1.AppError(`Vendor  phone is required`, 400);
+        }
+        const [created] = await vendor_schema_1.default.create([
+            {
+                company_id,
+                createdBy,
+                name: payload.vendorName.trim(),
+                phone: payload.vendorPhone,
+                email: payload.vendorEmail ?? null,
+                // address: null,
+                is_active: true,
+            },
+        ], { session });
+        if (!created) {
+            throw new appError_1.AppError("Vendor created failed", 500);
+        }
+        return created;
+    }
+    // neither provided — zod should catch this but safety net
+    throw new appError_1.AppError("Vendor ID or Vendor Name is required", 400);
+}
+// ─── Stage 1: Bulk upsert categories ─────────────────────────────────────────
+async function bulkUpsertCategories(items, company_id, createdBy, session) {
+    const map = new Map();
+    const withId = items.filter((i) => i.categoryId);
+    const withName = items.filter((i) => !i.categoryId && i.categoryName);
+    // 1. load existing categories by id
+    if (withId.length > 0) {
+        const ids = withId.map((i) => new mongoose_1.default.Types.ObjectId(i.categoryId));
+        const existing = await category_schema_1.default.find({
+            _id: { $in: ids },
+            company_id,
+        })
+            .session(session)
+            .lean();
+        if (existing.length !== new Set(withId.map((i) => i.categoryId)).size) {
+            throw new appError_1.AppError("One or more categories not found", 404);
+        }
+        // key by both id and name for product stage lookup
+        existing.forEach((c) => {
+            map.set(c._id.toString(), c._id);
+            map.set(c.name.toLowerCase(), c._id);
+        });
+    }
+    // 2. upsert categories by name
+    if (withName.length > 0) {
+        const uniqueNames = [
+            ...new Set(withName.map((i) => i.categoryName.trim().toLowerCase())),
+        ];
+        const existing = await category_schema_1.default.find({
+            company_id,
+            name: { $in: uniqueNames.map((n) => new RegExp(`^${n}$`, "i")) },
+        })
+            .session(session)
+            .lean();
+        existing.forEach((c) => {
+            map.set(c.name.toLowerCase(), c._id);
+        });
+        // create missing ones
+        const missing = uniqueNames.filter((n) => !map.has(n));
+        if (missing.length > 0) {
+            const created = await category_schema_1.default.insertMany(missing.map((name) => (0, sanitizeData_1.sanitizeData)({
+                company_id,
+                createdBy,
+                name: name.trim(),
+                slug: buildSlug(name),
+            })), { session });
+            created.forEach((c) => map.set(c.name.toLowerCase(), c._id));
+        }
     }
     return map;
 }
 // ─── Stage 2: Bulk upsert products ───────────────────────────────────────────
 async function bulkUpsertProducts(items, categoryMap, vendor_id, company_id, createdBy, session) {
-    // deduplicate by product name
-    const uniqueItems = [
-        ...new Map(items.map((i) => [i.product_name.trim().toLowerCase(), i])).values(),
-    ];
-    const existing = await product_schema_1.default.find({
-        company_id,
-        name: {
-            $in: uniqueItems.map((i) => new RegExp(`^${i.product_name.trim()}$`, "i")),
-        },
-    })
-        .session(session)
-        .lean();
-    const map = new Map(existing.map((p) => [p.name.toLowerCase(), { _id: p._id, sku: p.sku }]));
-    const missing = uniqueItems.filter((i) => !map.has(i.product_name.trim().toLowerCase()));
-    if (missing.length > 0) {
-        const created = await product_schema_1.default.insertMany(missing.map((i) => {
-            const category_id = categoryMap.get(i.category.trim().toLowerCase());
-            const sku = buildProductSku(i.product_name);
-            return {
-                company_id,
-                category_id,
-                vendor_id,
-                name: i.product_name.trim(),
-                slug: buildSlug(i.product_name) + "-" + Date.now(),
-                sku,
-                buying_price: i.unit_price,
-                selling_price: i.selling_price,
-                has_variants: true,
-                stock: 0,
-                is_active: true,
-                createdBy,
-            };
-        }), { session });
-        created.forEach((p) => map.set(p.name.toLowerCase(), { _id: p._id, sku: p.sku }));
+    const map = new Map();
+    const withId = items.filter((i) => i.productId);
+    const withName = items.filter((i) => !i.productId && i.product_name);
+    // ── 1. load existing products by id ───────────────────────
+    if (withId.length > 0) {
+        const ids = withId.map((i) => new mongoose_1.default.Types.ObjectId(i.productId));
+        const existing = await product_schema_1.default.find({
+            _id: { $in: ids },
+            company_id,
+            is_active: true,
+        })
+            .session(session)
+            .lean();
+        if (existing.length !== new Set(withId.map((i) => i.productId)).size) {
+            throw new appError_1.AppError("One or more products not found", 404);
+        }
+        existing.forEach((p) => {
+            map.set(p._id.toString(), { _id: p._id, sku: p.sku });
+            map.set(p.name.toLowerCase(), { _id: p._id, sku: p.sku });
+        });
+    }
+    // ── 2. upsert products by name ────────────────────────────
+    if (withName.length > 0) {
+        // deduplicate by name
+        const uniqueItems = [
+            ...new Map(withName.map((i) => [i.product_name.trim().toLowerCase(), i])).values(),
+        ];
+        const existing = await product_schema_1.default.find({
+            company_id,
+            name: {
+                $in: uniqueItems.map((i) => new RegExp(`^${i.product_name.trim()}$`, "i")),
+            },
+        })
+            .session(session)
+            .lean();
+        existing.forEach((p) => {
+            map.set(p.name.toLowerCase(), { _id: p._id, sku: p.sku });
+        });
+        // create missing products
+        const missing = uniqueItems.filter((i) => !map.has(i.product_name.trim().toLowerCase()));
+        if (missing.length > 0) {
+            const created = await product_schema_1.default.insertMany(missing.map((i) => {
+                // resolve category_id — by categoryId first, then categoryName
+                const category_id = i.categoryId
+                    ? categoryMap.get(i.categoryId)
+                    : categoryMap.get(i.categoryName.trim().toLowerCase());
+                if (!category_id) {
+                    throw new appError_1.AppError(`Category not resolved for product: "${i.product_name}"`, 500);
+                }
+                const sku = buildProductSku(i.product_name);
+                return {
+                    company_id,
+                    category_id,
+                    vendor_id,
+                    name: i.product_name.trim(),
+                    slug: buildSlug(i.product_name) + "-" + Date.now(),
+                    sku,
+                    buying_price: i.unit_price,
+                    selling_price: i.selling_price,
+                    has_variants: true,
+                    stock: 0,
+                    is_active: true,
+                    createdBy,
+                };
+            }), { session });
+            created.forEach((p) => map.set(p.name.toLowerCase(), { _id: p._id, sku: p.sku }));
+        }
     }
     return map;
 }
 // ─── Stage 3: Bulk upsert variants ───────────────────────────────────────────
 async function bulkUpsertVariants(items, productMap, company_id, session) {
+    // ── helper: resolve product from map by id or name ────────
+    const resolveProduct = (item) => {
+        const product = item.productId
+            ? productMap.get(item.productId)
+            : productMap.get(item.product_name.trim().toLowerCase());
+        if (!product) {
+            throw new appError_1.AppError(`Product not resolved in variant stage: "${item.product_name}"`, 500);
+        }
+        return product;
+    };
+    // ── load all existing variants for these products ─────────
     const productIds = [
-        ...new Set(items.map((i) => productMap.get(i.product_name.trim().toLowerCase())._id)),
-    ];
+        ...new Set(items.map((i) => resolveProduct(i)._id.toString())),
+    ].map((id) => new mongoose_1.default.Types.ObjectId(id));
     const existing = await product_variant_schema_1.default.find({
         company_id,
         product_id: { $in: productIds },
@@ -127,9 +252,10 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
     }));
     const toCreate = [];
     const toUpdate = [];
+    // ── classify each item → create or update ─────────────────
     for (const item of items) {
-        const product = productMap.get(item.product_name.trim().toLowerCase());
-        const key = variantKey(product._id.toString(), item.color, item.size);
+        const product = resolveProduct(item);
+        const key = variantKey(product._id.toString(), item.color, item.size ? item.size : "");
         if (map.has(key)) {
             const variant = existing.find((v) => {
                 const c = v.attributes?.find((a) => a.key === "color")?.value ?? "";
@@ -149,22 +275,25 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
             toCreate.push(item);
         }
     }
-    // Parallel stock increments for existing variants
+    // ── parallel update existing variants ─────────────────────
     if (toUpdate.length > 0) {
         await Promise.all(toUpdate.map(({ variantId, quantity, buying_price, selling_price }) => product_variant_schema_1.default.findByIdAndUpdate(variantId, { $inc: { stock: quantity }, $set: { buying_price, selling_price } }, { session })));
     }
-    // insertMany for new variants
+    // ── insertMany new variants ───────────────────────────────
     if (toCreate.length > 0) {
         const created = await product_variant_schema_1.default.insertMany(toCreate.map((item) => {
-            const product = productMap.get(item.product_name.trim().toLowerCase());
-            const sku = buildVariantSku(product.sku, item.color, item.size);
+            const product = resolveProduct(item);
+            const sku = buildVariantSku(product.sku, item.color, item.size ? item.size : "");
             return {
                 product_id: product._id,
                 company_id,
                 sku,
                 attributes: [
                     { key: "color", value: item.color.trim() },
-                    { key: "size", value: item.size.trim() },
+                    // ✅ only add size attribute if size has a value
+                    ...(item.size?.trim()
+                        ? [{ key: "size", value: item.size.trim() }]
+                        : []),
                 ],
                 buying_price: item.unit_price,
                 selling_price: item.selling_price,
@@ -184,39 +313,41 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
 }
 // ─── Create purchase ──────────────────────────────────────────────────────────
 const createPurchase = async (payload, req) => {
-    const { vendor_id, purchase_date, paid_amount, note, items, company_id, createdBy, } = payload;
-    const vendor = await vendor_schema_1.default.findOne({
-        _id: vendor_id,
-        company_id,
-        is_active: true,
-    }).lean();
-    if (!vendor)
-        throw new appError_1.AppError("Vendor not found", 404);
+    const { vendor_id, vendorName, vendorEmail, vendorPhone, purchase_date, paid_amount, note, items, company_id, createdBy, } = payload;
     const session = await mongoose_1.default.startSession();
     try {
         let purchase;
+        let vendor;
         await session.withTransaction(async () => {
+            // state - 0
+            vendor = await resolveVendor({
+                ...(vendor_id && { vendor_id }),
+                ...(vendorName && { vendorName }),
+                ...(vendorPhone && { vendorPhone }),
+                ...(vendorEmail && { vendorEmail }),
+            }, company_id, createdBy, session);
             // ── Stage 1: Categories ──────────────────────────────────────────────
-            const categoryMap = await bulkUpsertCategories(items.map((i) => i.category), company_id, createdBy, session);
+            const categoryMap = await bulkUpsertCategories(items, company_id, createdBy, session);
             // ── Stage 2: Products ────────────────────────────────────────────────
-            const productMap = await bulkUpsertProducts(items, categoryMap, new mongoose_1.default.Types.ObjectId(vendor_id), company_id, createdBy, session);
+            const productMap = await bulkUpsertProducts(items, categoryMap, vendor._id, company_id, createdBy, session);
             // ── Stage 3: Variants ────────────────────────────────────────────────
             const variantMap = await bulkUpsertVariants(items, productMap, company_id, session);
             // ── Build resolved line items from maps (zero extra DB calls) ────────
             const resolvedItems = items.map((item) => {
-                const product = productMap.get(item.product_name.trim().toLowerCase());
-                console.log("product", product);
+                // lookup by productId first, then name
+                const product = item.productId
+                    ? productMap.get(item.productId)
+                    : productMap.get(item.product_name.trim().toLowerCase());
                 if (!product)
                     throw new appError_1.AppError(`Product not resolved: "${item.product_name}"`, 500);
-                const key = variantKey(product._id.toString(), item.color, item.size);
+                const key = variantKey(product._id.toString(), item.color, item.size ? item.size : "");
                 const variant = variantMap.get(key);
-                console.log("variant", variant);
                 if (!variant)
                     throw new appError_1.AppError(`Variant not resolved: "${item.product_name}" (${item.color}, ${item.size})`, 500);
                 return {
                     product_id: product._id,
                     variant_id: variant._id,
-                    product_name: item.product_name.trim(),
+                    product_name: item.product_name?.trim() ?? "",
                     sku: variant.sku,
                     quantity: item.quantity,
                     unit_price: item.unit_price,
@@ -238,7 +369,7 @@ const createPurchase = async (payload, req) => {
             purchaseEnd.setHours(23, 59, 59, 999);
             const duplicate = await purchase_schema_1.default.findOne({
                 company_id,
-                vendor_id: new mongoose_1.default.Types.ObjectId(vendor_id),
+                vendor_id: vendor._id,
                 product_ids: { $all: product_ids, $size: product_ids.length },
                 purchase_date: { $gte: purchaseStart, $lte: purchaseEnd },
             }).session(session);
@@ -248,7 +379,8 @@ const createPurchase = async (payload, req) => {
             const [created] = await purchase_schema_1.default.create([
                 {
                     company_id,
-                    vendor_id: new mongoose_1.default.Types.ObjectId(vendor_id),
+                    vendor_id: vendor._id,
+                    items: resolvedItems,
                     product_ids,
                     item_count: resolvedItems.length,
                     total_amount,
@@ -258,7 +390,7 @@ const createPurchase = async (payload, req) => {
                     createdBy,
                 },
             ], { session });
-            await vendor_schema_1.default.findByIdAndUpdate(vendor_id, [
+            await vendor_schema_1.default.findByIdAndUpdate(vendor._id, [
                 // aggregation pipeline update — recalculates due from source fields
                 {
                     $set: {

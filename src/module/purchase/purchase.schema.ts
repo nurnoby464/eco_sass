@@ -5,11 +5,35 @@ import Vendor from "../vendor/vendor.schema";
 import Company from "../company/company.schema"; // adjust path
 import { IPurchaseDocument } from "./purchase.interface";
 
+const purchaseItemSchema = new Schema(
+  {
+    product_id: { type: Schema.Types.ObjectId, ref: "Product", required: true },
+    variant_id: {
+      type: Schema.Types.ObjectId,
+      ref: "ProductVariant",
+      required: true,
+    },
+
+    // snapshots — frozen at purchase time
+    product_name: { type: String, required: true },
+    sku: { type: String, required: true },
+    color: { type: String, default: null },
+    size: { type: String, default: null },
+
+    quantity: { type: Number, required: true, min: 1 },
+    unit_price: { type: Number, required: true },
+    selling_price: { type: Number, required: true },
+    total: { type: Number, required: true },
+  },
+  { _id: false },
+);
+
 const PurchaseSchema = new Schema<IPurchaseDocument>(
   {
     company_id: { type: Schema.Types.ObjectId, ref: "Company", required: true },
     vendor_id: { type: Schema.Types.ObjectId, ref: "Vendor", required: true },
     // ── Summary only ──────────────────────────────────────
+    items: { type: [purchaseItemSchema], required: true },
     product_ids: [{ type: Schema.Types.ObjectId, ref: "Product" }], // unique products
     item_count: { type: Number, required: true },
 
@@ -46,9 +70,6 @@ PurchaseSchema.pre("save", function () {
     this.status = "partial";
   }
 });
-
-
-
 
 // ── Indexes ───────────────────────────────────────────────────────────────────
 PurchaseSchema.index({ company_id: 1, createdAt: -1 });

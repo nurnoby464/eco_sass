@@ -7,19 +7,60 @@ const mongoId = zod_1.z
     .string()
     .trim()
     .regex(/^[a-f\d]{24}$/i, "Invalid ObjectId");
+// helper — reuse for all optional mongoId fields
+const optionalEmail = zod_1.z
+    .string().email("Invalid email").trim()
+    .optional()
+    .or(zod_1.z.literal("").transform(() => undefined))
+    .or(zod_1.z.null().transform(() => undefined));
+const optionalMongoId = mongoId
+    .optional()
+    .or(zod_1.z.literal("").transform(() => undefined))
+    .or(zod_1.z.null().transform(() => undefined));
+const optionalString = zod_1.z.string().trim()
+    .optional()
+    .or(zod_1.z.literal("").transform(() => undefined))
+    .or(zod_1.z.null().transform(() => undefined));
 // ─── Create ───────────────────────────────────────────────────────────────────
-const purchaseItemSchema = zod_1.z.object({
-    product_name: zod_1.z.string().trim().min(1, "Product name is required"),
-    category: zod_1.z.string().trim().min(1, "Category is required"),
+const purchaseItemSchema = zod_1.z
+    .object({
+    product_name: optionalString,
+    productId: optionalMongoId,
+    categoryId: optionalMongoId,
+    categoryName: optionalString,
     color: zod_1.z.string().trim().min(1, "Color is required"),
-    size: zod_1.z.string().trim().min(1, "Size is required"),
+    size: zod_1.z.string().trim().optional().default(""),
     unit_price: zod_1.z.number({ error: "Unit price is required" }).min(0),
     selling_price: zod_1.z.number({ error: "Selling price is required" }).min(0),
     quantity: zod_1.z.number().int().positive("Quantity must be a positive integer"),
     low_stock_alert: zod_1.z.number().int().min(0).optional().default(5),
+})
+    .superRefine((data, ctx) => {
+    if (!data.productId || data.productId.trim() === "") {
+        if (!data.product_name || data.product_name.trim() === "") {
+            ctx.addIssue({
+                code: zod_1.z.ZodIssueCode.custom,
+                path: ["ProductName"],
+                message: "Product Name is required",
+            });
+        }
+    }
+    if (!data.categoryId || data.categoryId?.trim() === "") {
+        if (!data.categoryName || data.categoryName.trim() === "") {
+            ctx.addIssue({
+                code: zod_1.z.ZodIssueCode.custom,
+                path: ["categoryName"],
+                message: "Category Name is required",
+            });
+        }
+    }
 });
-exports.createPurchaseSchema = zod_1.z.object({
-    vendor_id: mongoId,
+exports.createPurchaseSchema = zod_1.z
+    .object({
+    vendor_id: optionalMongoId,
+    vendorName: optionalString,
+    vendorPhone: optionalString,
+    vendorEmail: optionalEmail,
     purchase_date: zod_1.z
         .string()
         .trim()
@@ -31,6 +72,17 @@ exports.createPurchaseSchema = zod_1.z.object({
         .array(purchaseItemSchema)
         .min(1, "At least one item is required")
         .max(500, "Maximum 500 items per purchase"),
+})
+    .superRefine((data, ctx) => {
+    if (!data.vendor_id || data.vendor_id.trim() === "") {
+        if (!data.vendorName || data.vendorName.trim() === "") {
+            ctx.addIssue({
+                code: zod_1.z.ZodIssueCode.custom,
+                path: ["vendorName"],
+                message: "Vendor name is required when vendor is not selected",
+            });
+        }
+    }
 });
 exports.updatePurchaseSchema = zod_1.z.object({
     paid_amount: zod_1.z.number().min(0, "Paid amount must be ≥ 0"),

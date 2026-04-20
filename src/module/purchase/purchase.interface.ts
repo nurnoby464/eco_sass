@@ -2,18 +2,21 @@ import mongoose, { Document } from "mongoose";
 
 export interface IPurchaseItem {
   product_id: mongoose.Types.ObjectId;
-  variant_id: mongoose.Types.ObjectId | null;
-  product_name: string; // snapshot at purchase time
-  sku: string; // snapshot
+  variant_id: mongoose.Types.ObjectId;
+  product_name: string;
+  sku: string;
+  color: string | null;
+  size: string | null;
   quantity: number;
-  unit_price: number; // buying price at time of purchase
-  selling_price: number; // ← NEW: selling price at time of purchase
-  total: number; // quantity * unit_price
+  unit_price: number;
+  selling_price: number;
+  total: number;
 }
 
 export interface IPurchase {
   company_id: mongoose.Types.ObjectId;
   vendor_id: mongoose.Types.ObjectId;
+  items: IPurchaseItem[];
   product_ids: mongoose.Types.ObjectId[];
   item_count: number;
 
