@@ -46,6 +46,7 @@ const router = express_1.default.Router();
 router.get("/products", (0, validate_1.validate)({ query: product_validation_1.productQuerySchema }), companyIdentifier_1.companyIdentifier, PublicController.getProduct);
 router.get("/category", companyIdentifier_1.companyIdentifier, PublicController.getAllCategories);
 router.get("/products/:id", companyIdentifier_1.companyIdentifier, PublicController.getProductById);
+router.get("/db-test", PublicController.dbTest);
 const PublicRoute = router;
 exports.default = PublicRoute;
 //# sourceMappingURL=public.route.js.map

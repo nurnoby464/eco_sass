@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllCategories = exports.getProductById = exports.getProduct = void 0;
+exports.getAllCategories = exports.getProductById = exports.dbTest = exports.getProduct = void 0;
 const PublicService = __importStar(require("./public.service"));
 const ApiResponse_1 = require("../../utils/ApiResponse");
 const getProduct = async (req, res) => {
@@ -42,6 +42,12 @@ const getProduct = async (req, res) => {
     return ApiResponse_1.ApiResponse.paginated(res, "Products retrieved successfully", products, total, page, limit);
 };
 exports.getProduct = getProduct;
+const dbTest = async (req, res) => {
+    const query = req.validatedQuery;
+    const { products, total, page, limit } = await PublicService.dbTest(req, query);
+    return ApiResponse_1.ApiResponse.paginated(res, "Products retrieved successfully", products, total, page, limit);
+};
+exports.dbTest = dbTest;
 const getProductById = async (req, res) => {
     const id = req.params.id;
     const products = await PublicService.getProductById({ id }, req);

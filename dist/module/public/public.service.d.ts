@@ -12,6 +12,16 @@ export declare const getProduct: (req: Request, query: GetProductQuery) => Promi
     page: number;
     limit: number;
 }>;
+export declare const dbTest: (req: Request, query: GetProductQuery) => Promise<{
+    products: (import("../product/product.interface").IProduct & {
+        _id: Types.ObjectId;
+    } & {
+        __v: number;
+    })[];
+    total: number;
+    page: number;
+    limit: number;
+}>;
 export declare const getProductById: (payload: GetProductParamsQuery, req: Request) => Promise<{
     products: (import("../product/product.interface").IProduct & {
         _id: Types.ObjectId;

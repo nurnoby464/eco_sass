@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 
 // ─── Config ───────────────────────────────────────────────
 const MONGO_URI =
-  "mongodb+srv://admin:TREc6lE4TzmrSjYG@cluster0.m8oaxyu.mongodb.net/emultivendor?retryWrites=true&w=majority&appName=Cluster0";
+  "mongodb+srv://admin:TREc6lE4TzmrSjithuG@cluster0.m8oaxyu.mongodb.net/emultivendor?retryWrites=true&w=majority&appName=Cluster";
 
 const START_FROM   = 12;    // nurnoby12
 const TOTAL_USERS  = 2000;

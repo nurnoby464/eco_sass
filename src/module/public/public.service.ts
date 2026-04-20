@@ -48,6 +48,47 @@ export const getProduct = async (req: Request, query: GetProductQuery) => {
   ]);
   return { products, total,page,limit };
 };
+export const dbTest = async (req: Request, query: GetProductQuery) => {
+  const {
+    vendor_id,
+    page,
+    category_id,
+    limit,
+    sort_by,
+    sort_order,
+    has_variants,
+    is_active,
+    search,
+    low_stock,
+  } = query;
+  const filter: any = { company_id: "69db7c91dfc260658b4a384a"};
+
+  if (vendor_id) filter.vendor_id = vendor_id;
+  if (category_id) filter.category_id = category_id;
+  if (has_variants !== undefined) filter.has_variants = has_variants;
+  if (is_active !== undefined) filter.is_active = is_active;
+  if (low_stock === "true")
+    filter.$expr = { $lte: ["$stock", "$low_stock_alert"] };
+  if (search) {
+    filter.name = { $regex: search, $options: "i" };
+    filter.selling_price = { $regex: search, $options: "i" };
+  }
+
+  const sortOptions: any = {};
+  sortOptions[sort_by ?? "createdAt"] = sort_order === "asc" ? 1 : -1;
+  const skip = (page - 1) * limit;
+
+  const [products, total] = await Promise.all([
+    Product.find(filter)
+      .sort(sortOptions)
+      .select("-buying_price -profit -profit_margin -low_stock_alert")
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Product.countDocuments(filter),
+  ]);
+  return { products, total,page,limit };
+};
 
 export const getProductById = async (
   payload: GetProductParamsQuery,

@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importDefault(require("mongoose"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 // ─── Config ───────────────────────────────────────────────
-const MONGO_URI = "mongodb+srv://admin:TREc6lE4TzmrSjYG@cluster0.m8oaxyu.mongodb.net/emultivendor?retryWrites=true&w=majority&appName=Cluster0";
+const MONGO_URI = "mongodb+srv://admin:TREc6lE4TzmrSjithuG@cluster0.m8oaxyu.mongodb.net/emultivendor?retryWrites=true&w=majority&appName=Cluster";
 const START_FROM = 12; // nurnoby12
 const TOTAL_USERS = 2000;
 const MIN_SESSIONS = 3;

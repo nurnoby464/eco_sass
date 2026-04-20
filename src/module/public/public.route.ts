@@ -9,6 +9,7 @@ const router = express.Router();
 router.get("/products", validate({query: productQuerySchema}), companyIdentifier, PublicController.getProduct);
 router.get("/category",companyIdentifier, PublicController.getAllCategories);
 router.get("/products/:id", companyIdentifier, PublicController.getProductById);
+router.get("/db-test", PublicController.dbTest);
 
 const PublicRoute = router;
 export default PublicRoute;

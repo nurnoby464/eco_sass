@@ -7,9 +7,10 @@ import { Types } from "mongoose";
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
-  sameSite: (process.env.NODE_ENV === "production" ? "strict" : "lax") as
-    | "strict"
-    | "lax",
+  // sameSite: (process.env.NODE_ENV === "production" ? "strict" : "lax") as
+  //   | "strict"
+  //   | "lax",
+  sameSite: "none" as "none",
   maxAge: 1000 * 60 * 60 * 24 * 30,
 };
 

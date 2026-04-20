@@ -27,14 +27,27 @@ import { AppError } from "./middlewares/appError";
 // import publicRoutes from './modules/public/public.routes';
 
 const app: Application = express();
-const allowOrigin =
-  process.env.NODE_ENV === "production"
-    ? [
-        "https://your-app.vercel.app",
-        "https://your-app.herokuapp.com",
-        // add more production domains as needed
-      ]
-    : ["http://localhost:3000"];
+const allowOrigin = [
+  "http://localhost:3000",
+  "https://multi-mauve-five.vercel.app"
+];
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (origin && allowOrigin.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,x-company-id,x-subdomain");
+  res.setHeader("Access-Control-Expose-Headers", "X-Total-Count,X-Total-Pages");
+
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+
+  next();
+});
 
 // Middlewares
 app.use(helmet());
@@ -80,6 +93,9 @@ app.use("/api/v1/product-variant", ProductVariantRoute);
 // app.use('/api/v1/public',   publicRoutes);
 
 // Health check
+app.get("/", (req, res) => {
+  res.json({ success: true, message: "Welcome to Multi vendor SAAS" });
+});
 app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "Server is running" });
 });

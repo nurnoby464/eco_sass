@@ -18,8 +18,8 @@ router.post("/refresh", auth_controller_1.AuthController.refresh);
 router.post("/register", (0, validate_1.validate)({ body: super_admin_validation_1.registerCustomerSchema }), companyIdentifier_1.companyIdentifier, auth_controller_1.AuthController.registerCustomer);
 router.delete("/session/:userId/:sessionId", (0, validate_1.validate)({ params: auth_schema_1.sessionParamsSchema }), auth_controller_1.AuthController.removeSession);
 // protected
-router.use(AuthenticateHelper_1.authenticate);
 router.post("/logout", auth_controller_1.AuthController.logout);
+router.use(AuthenticateHelper_1.authenticate);
 router.use(AuthenticateHelper_1.verifySession);
 router.patch("/update-password", (0, validate_1.validate)({ body: auth_schema_1.updatePasswordSchema }), auth_controller_1.AuthController.updatePassword);
 exports.AuthRoutes = router;
