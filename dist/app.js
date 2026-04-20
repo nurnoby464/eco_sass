@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 // src/app.ts — ONLY Express config, routes, middleware
 const express_1 = __importDefault(require("express"));
-const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const morgan_1 = __importDefault(require("morgan"));
 const super_admin_route_1 = require("./module/super_admin/super_admin.route");
@@ -19,7 +18,6 @@ const product_route_1 = require("./module/product/product.route");
 const purchase_route_1 = require("./module/purchase/purchase.route");
 const product_variant_route_1 = require("./module/product-variant/product-variant.route");
 const public_route_1 = __importDefault(require("./module/public/public.route"));
-const appError_1 = require("./middlewares/appError");
 // routes
 // import authRoutes from './modules/auth/auth.routes';
 // import adminRoutes from './modules/admin/admin.routes';
@@ -46,27 +44,27 @@ app.use((req, res, next) => {
 });
 // Middlewares
 app.use((0, helmet_1.default)());
-app.use((0, cors_1.default)({
-    origin: (origin, callback) => {
-        if (!origin)
-            return callback(null, true);
-        if (allowOrigin.includes(origin)) {
-            callback(null, true);
-        }
-        else {
-            callback(new appError_1.AppError(`CORS blocked: ${origin}`));
-        }
-    },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowedHeaders: [
-        "Content-Type",
-        "Authorization",
-        "x-company-id",
-        "x-subdomain",
-    ],
-    exposedHeaders: ["X-Total-Count", "X-Total-Pages"],
-    credentials: true,
-}));
+// app.use(
+//   cors({
+//     origin: (origin, callback) => {
+//       if (!origin) return callback(null, true);
+//       if (allowOrigin.includes(origin)) {
+//         callback(null, true);
+//       } else {
+//         callback(new AppError(`CORS blocked: ${origin}`));
+//       }
+//     },
+//     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+//     allowedHeaders: [
+//       "Content-Type",
+//       "Authorization",
+//       "x-company-id",
+//       "x-subdomain",
+//     ],
+//     exposedHeaders: ["X-Total-Count", "X-Total-Pages"],
+//     credentials: true,
+//   }),
+// );
 app.use((0, morgan_1.default)("dev"));
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));

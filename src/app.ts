@@ -51,27 +51,27 @@ app.use((req, res, next) => {
 
 // Middlewares
 app.use(helmet());
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (allowOrigin.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new AppError(`CORS blocked: ${origin}`));
-      }
-    },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "x-company-id",
-      "x-subdomain",
-    ],
-    exposedHeaders: ["X-Total-Count", "X-Total-Pages"],
-    credentials: true,
-  }),
-);
+// app.use(
+//   cors({
+//     origin: (origin, callback) => {
+//       if (!origin) return callback(null, true);
+//       if (allowOrigin.includes(origin)) {
+//         callback(null, true);
+//       } else {
+//         callback(new AppError(`CORS blocked: ${origin}`));
+//       }
+//     },
+//     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+//     allowedHeaders: [
+//       "Content-Type",
+//       "Authorization",
+//       "x-company-id",
+//       "x-subdomain",
+//     ],
+//     exposedHeaders: ["X-Total-Count", "X-Total-Pages"],
+//     credentials: true,
+//   }),
+// );
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
