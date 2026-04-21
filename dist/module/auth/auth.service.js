@@ -20,7 +20,7 @@ const login = async (payload, req) => {
     }
     const isMatch = await existing.comparePassword(password);
     if (!isMatch) {
-        throw new appError_2.AppError("Password incorrect!");
+        throw new appError_2.AppError("Password incorrect!", 400);
     }
     //check session limit
     const activeSessions = await auth_schema_1.default.find({

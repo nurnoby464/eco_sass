@@ -27,7 +27,7 @@ const public_route_1 = __importDefault(require("./module/public/public.route"));
 const app = (0, express_1.default)();
 const allowOrigin = [
     "http://localhost:3000",
-    "https://multi-mauve-five.vercel.app"
+    "https://rupbaan-frontend-3b7f.vercel.app"
 ];
 app.use((req, res, next) => {
     const origin = req.headers.origin;

@@ -34,7 +34,7 @@ const login = async (payload: ILogin, req: Request) => {
   }
   const isMatch = await existing.comparePassword(password);
   if (!isMatch) {
-    throw new AppError("Password incorrect!");
+    throw new AppError("Password incorrect!",400);
   }
   //check session limit
   const activeSessions = await Session.find({

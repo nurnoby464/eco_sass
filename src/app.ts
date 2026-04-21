@@ -29,7 +29,7 @@ import { AppError } from "./middlewares/appError";
 const app: Application = express();
 const allowOrigin = [
   "http://localhost:3000",
-  "https://multi-mauve-five.vercel.app"
+  "https://rupbaan-frontend-3b7f.vercel.app"
 ];
 
 app.use((req, res, next) => {
