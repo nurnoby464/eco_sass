@@ -1,0 +1,65 @@
+import express from "express";
+import { AppError } from "./appError";
+import { JwtHelper } from "../utils/jwtHelper";
+import { jwtConfig } from "../config/jwt.config";
+import Session from "../module/auth/auth.schema";
+import { Types } from "mongoose";
+
+export const saleAnAuthenticateAndUnauthenticated: express.RequestHandler =
+  async (req, res, next) => {
+    try {
+      const authHeader = req.headers.authorization;
+      // console.log(authHeader)
+      if (!authHeader?.startsWith("Bearer")) {
+        next();
+      }
+      const token = authHeader?.split(" ")[1] as string;
+      // decode token
+      let decoded;
+      try {
+        decoded = JwtHelper.verifyToken({
+          token,
+          secret: jwtConfig.access.secret,
+        });
+      } catch (error: any) {
+        if (error.name === "TokenExpiredError")
+          throw new AppError("Assess token is expired", 401);
+        throw new AppError("Invalid assess token", 401);
+      }
+      if (decoded.passwordChangedAt) {
+        const tokenIssueAt = decoded.iat ?? 0 * 1000;
+        const passwordChangeAt = decoded.passwordChangedAt;
+        if (passwordChangeAt > tokenIssueAt) {
+          throw new AppError("Password was changed. Please log in again", 401);
+        }
+      }
+      req.user = {
+        _id: decoded._id,
+        company_id: decoded.company_id,
+        sessionId: decoded.sessionId,
+        name: decoded.name,
+        email: decoded.email,
+        role: decoded.role,
+        passwordChangedAt: decoded.passwordChangedAt,
+      };
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+export const verifySession: express.RequestHandler = async (req, res, next) => {
+  try {
+    const session = await Session.findOne({
+      _id: new Types.ObjectId(req.user.sessionId),
+      valid: true,
+    }).lean();
+
+    if (!session)
+      throw new AppError("Session expired. Please log in again", 401);
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
