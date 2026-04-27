@@ -35,7 +35,7 @@ const customerSnapshotsSchema = new Schema<ICustomerSnapshot>({
   customerId: {
     type: Schema.Types.ObjectId,
     ref: "Customer",
-    default: null,
+    required: true,
   },
 });
 
@@ -94,7 +94,12 @@ const saleSchema = new Schema<ISaleDocument>(
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
+    },
+    createdByType: {
+      type: String,
+      enum: ["staff", "system"],
+      default: "staff",
     },
   },
   { timestamps: true },

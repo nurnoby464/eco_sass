@@ -9,10 +9,21 @@ import * as ProductVariantController from "./product-variant.controller";
 import {
   createVariantSchema,
   productVariantParamsSchema,
+  productVariantQuerySchema,
   updateVariantSchema,
   variantParamsSchema,
 } from "./product-variant.validation";
+import { companyIdentifier } from "../../middlewares/companyIdentifier";
 const variantRouter = Router({ mergeParams: true }); // mergeParams to access :id from parent
+
+variantRouter
+  .route("/all-products")
+  .get(
+    validate({ query: productVariantQuerySchema }),
+    authenticate,
+    verifySession,
+    ProductVariantController.getAllProductWithVariant,
+  );
 
 variantRouter
   .route("/")
@@ -55,4 +66,4 @@ variantRouter
     ProductVariantController.deleteVariant,
   );
 
-  export const ProductVariantRoute = variantRouter;
+export const ProductVariantRoute = variantRouter;

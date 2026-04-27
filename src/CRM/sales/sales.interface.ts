@@ -59,7 +59,8 @@ export interface ISale {
   note: string | null;
   status: SaleStatus;
 
-  createdBy: mongoose.Types.ObjectId; // staff who made the sale
+  createdBy: mongoose.Types.ObjectId | null;
+  createdByType: "staff"| "system";
   createdAt: Date;
   updatedAt: Date;
 }

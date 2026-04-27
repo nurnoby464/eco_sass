@@ -1,107 +1,44 @@
 import { model, Schema } from "mongoose";
-import {
-  ICustomerSnapshot,
-  ISale,
-  ISaleDocument,
-  ISaleItem,
-} from "./sales.interface";
+import { ICustomerDocument } from "./customer.interface";
+import { boolean } from "zod";
 
-const saleItemSchema = new Schema<ISaleItem>({
-  productId: {
-    type: Schema.Types.ObjectId,
-    ref: "Product",
-    required: true,
-  },
-  variantId: {
-    type: Schema.Types.ObjectId,
-    ref: "ProductVariant",
-    required: true,
-  },
-  productName: { type: String, required: true },
-  color: { type: String, required: true },
-  size: { type: String, required: true },
-  quantity: { type: Number, required: true, min: [1, "Minimum order one"] },
-  unitPrice: { type: Number, required: true },
-  sellingPrice: { type: Number, required: true },
-  discountType: { type: String, enum: ["flat", "percentage"], default: null },
-  discountValue: { type: Number, default: 0 },
-  discount_amount: { type: Number, default: 0 },
-  subtotal: { type: Number, required: true },
-});
-
-const customerSnapshotsSchema = new Schema<ICustomerSnapshot>({
-  name: { type: String, required: true },
-  phone: { type: String, required: true },
-  customerId: {
-    type: Schema.Types.ObjectId,
-    ref: "Customer",
-    default: null,
-  },
-});
-
-const saleSchema = new Schema<ISaleDocument>(
+const customerSchema = new Schema<ICustomerDocument>(
   {
     companyId: {
       type: Schema.Types.ObjectId,
       ref: "Company",
       required: true,
     },
-    saleCode: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    customer: {
-      type: customerSnapshotsSchema,
-      required: true,
-    },
-    items: {
-      type: [saleItemSchema],
-      required: true,
-      validate: {
-        validator: (v: ISaleItem[]) => v.length > 0,
-        message: "Sale must have at least one item",
-      },
-    },
-
-    grossAmount: { type: Number, required: true },
-    discountTotal: { type: Number, default: 0 },
-    netAmount: { type: Number, required: true },
-    paidAmount: { type: Number, default: 0 },
-    dueAmount: { type: Number, default: 0 },
-    changeAmount: { type: Number, default: 0 },
-
-    paymentMethod: {
-      type: String,
-      enum: ["cash", "card", "mobile_banking", "credit"],
-      required: true,
-    },
-    paymentStatus: {
-      type: String,
-      enum: ["paid", "partial", "due"],
-      default: "due",
-    },
-
-    creditUsed: { type: Number, default: 0 },
-    saleDate: { type: Date, default: Date.now },
-    note: { type: String, default: null },
-
-    status: {
-      type: String,
-      enum: ["completed", "returned", "cancelled"],
-      default: "completed",
-    },
-    createdBy: {
+    userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null,
     },
-  },
-  { timestamps: true },
-);
-saleSchema.index({ companyId: 1, sateDate: -1 });
-saleSchema.index({ companyId: 1, paymentStatus: 1 });
-saleSchema.index({ companyId: 1, status: 1 });
 
-const Sale = model<ISaleDocument>("Sale", saleSchema);
-export default Sale;
+    name: { type: String, required: true, trim: true },
+    phone: { type: String, required: true, trim: true },
+    email: { type: String, default: null, trim: true },
+    address: { type: String, default: null, trim: true },
+
+    totalPurchased: { type: Number, default: 0 },
+    totalPaid: { type: Number, default: 0 },
+    due: { type: Number, default: 0 },
+    credit: { type: Number, default: 0 },
+
+    //CRM
+    tags: { type: [String], default: [] },
+    lastPurchasedAt: { type: Date, default: null },
+    isActive: { type: Boolean, default: true },
+  },
+  {
+    timestamps: true,
+  },
+);
+
+customerSchema.index({ companyId: 1, phone: 1 }, { unique: true });
+customerSchema.index({ companyId: 1, due: -1 });       // desending order due report
+customerSchema.index({ companyId: 1, lastPurchasedAt: -1 }); // recent customers
+
+const Customer = model<ICustomerDocument>("Customer",customerSchema);
+export default Customer
+

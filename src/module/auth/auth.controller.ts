@@ -16,7 +16,7 @@ const COOKIE_OPTIONS = {
 
 const login = asyncHandler(async (req: Request, res: Response) => {
   const { refreshToken, ...result } = await AuthServices.login(req.body, req);
-  res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
+  res.cookie("eMultiRefreshToken", refreshToken, COOKIE_OPTIONS);
   return ApiResponse.success(res, result, "Login successfully");
 });
 
@@ -26,14 +26,14 @@ const logout = asyncHandler(async (req: Request, res: Response) => {
   await AuthServices.logout(refreshToken);
 
   // clear the cookie
-  res.clearCookie("refreshToken", COOKIE_OPTIONS);
+  res.clearCookie("eMultiRefreshToken", COOKIE_OPTIONS);
 
   return ApiResponse.success(res, null, "Logged out successfully");
 });
 
 // ─── Refresh access token ─────────────────────────────────
 const refresh = asyncHandler(async (req: Request, res: Response) => {
-  const refreshToken = req.cookies?.refreshToken;
+  const refreshToken = req.cookies?.eMultiRefreshToken;
   if (!refreshToken) throw new AppError("No refresh token provided", 401);
 
   const result = await AuthServices.refresh(refreshToken);

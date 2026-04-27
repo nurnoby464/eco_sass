@@ -68,3 +68,18 @@ export const deleteVariant = asyncHandler(
     return ApiResponse.success(res, null, "Variant deactivated successfully");
   },
 );
+
+export const getAllProductWithVariant = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { data, total, query } =
+      await ProductVariantServices.getAllProductWithVariant({req});
+    return ApiResponse.paginated(
+      res,
+      "Get Product with variant successfully",
+      data,
+      total,
+      query.page,
+      query.limit,
+    );
+  },
+);

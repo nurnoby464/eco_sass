@@ -30,6 +30,7 @@ export const createSaleSchema = z.object({
 
     paidAmount: z.number().min(0).default(0),
     note: z.string().optional().nullable(),
+    createdByType:z.enum(["staff", "system"])
 });
 
 export type CreateSaleInput = z.infer<typeof createSaleSchema>;

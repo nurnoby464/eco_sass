@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { Request } from "express";
 import Product from "../product/product.schema";
 import ProductVariant from "../product-variant/product-variant.schema";
@@ -7,7 +7,17 @@ import { AppError } from "../../middlewares/appError";
 import { auditLog } from "../../utils/auditLogger";
 import { AUDIT_ACTIONS } from "../audit/audit.interface";
 import { sanitizeData } from "../../utils/sanitizeData";
-import { CreateVariantInput, UpdateVariantInput } from "./product-variant.validation";
+import {
+  CreateVariantInput,
+  UpdateVariantInput,
+} from "./product-variant.validation";
+import { useSkip } from "../../utils/useSkip";
+
+// interface
+
+interface IGetProductVariant {
+  req: Request;
+}
 
 export const createVariant = async (
   payload: CreateVariantInput & {
@@ -164,4 +174,196 @@ export const deleteVariant = async (payload: {
     targetId: variant._id,
   });
   return variant;
+};
+
+export const getAllProductWithVariant = async (payload: IGetProductVariant) => {
+  const { req } = payload;
+  const query = req.validatedQuery as {
+    page: number;
+    limit: number;
+    search: string;
+    sortOrder: 1 | -1;
+    sortBy: string;
+    stock: "lowStock" | "outOfStock" | "reminderStock";
+  };
+  const { page, limit, search, stock, sortBy, sortOrder } = query;
+  const lowStockNumber = 3;
+  const companyId = req.user.company_id;
+  if (!companyId) {
+    throw new AppError("Company is required", 400);
+  }
+  const filter: Record<string, unknown> = {
+    company_id: new Types.ObjectId(companyId),
+  };
+  if (search) {
+    const keywords = search.trim().split(/\s+/);
+    filter.$and = keywords.map((word) => ({
+      $or: [
+        { sku: { $regex: word, $options: "i" } },
+        { "attributes.value": { $regex: word, $options: "i" } },
+      ],
+    }));
+  }
+  if (stock && stock.trim() !== "") {
+    if (stock === "outOfStock") {
+      filter.stock = 0;
+    }
+    if (stock === "lowStock") {
+      filter.stock = { $lte: 3, $gte: 1 };
+    }
+    if (stock === "reminderStock") {
+      filter.$expr = {
+        $and: [
+          { $lte: ["$stock", "$low_stock_alert"] },
+          { $gte: ["$stock", 1] },
+        ],
+      };
+    }
+  }
+  const [result] = await ProductVariant.aggregate([
+    { $match: { company_id: new Types.ObjectId(companyId) } },
+    {
+      $facet: {
+        stats: [
+          {
+            $group: {
+              _id: null,
+              totalProduct: { $sum: 1 },
+              outOfStock: {
+                $sum: { $cond: [{ $eq: ["$stock", 0] }, 1, 0] },
+              },
+              lowStock: {
+                $sum: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $gte: ["$stock", 1] },
+                        { $lte: ["$stock", lowStockNumber] },
+                      ],
+                    },
+                    1,
+                    0,
+                  ],
+                },
+              },
+              reminderStock: {
+                $sum: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $gte: ["$stock", 1] },
+                        { $lte: ["$stock", "$low_stock_alert"] },
+                      ],
+                    },
+                    1,
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+        ],
+        total: [{ $match: filter }, { $count: "count" }],
+        data: [
+          { $match: filter },
+          { $sort: { [sortBy]: sortOrder } },
+          { $skip: useSkip({ page, limit }) },
+          { $limit: limit },
+          {
+            $lookup: {
+              from: "products",
+              localField: "product_id",
+              foreignField: "_id",
+              as: "_product",
+              pipeline: [{ $project: { name: 1 } }],
+            },
+          },
+          {
+            $addFields: {
+              productName: {
+                $ifNull: [
+                  { $arrayElemAt: ["$_product.name", 0] },
+                  "Unknown Product",
+                ],
+              },
+            },
+          },
+          {
+            $addFields: {
+              color: {
+                $getField: {
+                  field: "value",
+                  input: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: "$attributes",
+                          as: "a",
+                          cond: { $eq: ["$$a.key", "color"] },
+                        },
+                      },
+                      0,
+                    ],
+                  },
+                },
+              },
+              size: {
+                $getField: {
+                  field: "value",
+                  input: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: "$attributes",
+                          as: "a",
+                          cond: { $eq: ["$$a.key", "size"] },
+                        },
+                      },
+                      0,
+                    ],
+                  },
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              product_id: 1,
+              company_id: 1,
+              sku: 1,
+              image: 1,
+              buying_price: 1,
+              selling_price: 1,
+              profit: 1,
+              profit_margin: 1,
+              stock: 1,
+              low_stock_alert: 1,
+              is_active: 1,
+              productName: 1,
+              color: 1,
+              size: 1,
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  const stats = result.stats[0] ?? {
+    totalProduct: 0,
+    outOfStock: 0,
+    lowStock: 0,
+    reminderStock: 0,
+  };
+  const total = result.total[0]?.count ?? 0;
+  const products = result.data;
+  const data = {
+    products,
+    totalProduct: stats.totalProduct,
+    outOfStock: stats.outOfStock,
+    lowStock: stats.lowStock,
+    reminderStock: stats.reminderStock,
+  };
+  return { data, total, query };
 };

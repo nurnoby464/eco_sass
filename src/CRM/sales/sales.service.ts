@@ -5,6 +5,7 @@ import { AppError } from "../../middlewares/appError";
 import Product from "../../module/product/product.schema";
 import ProductVariant from "../../module/product-variant/product-variant.schema";
 import Sale from "./sales.schema";
+import Customer from "../customer/customer.schema";
 
 type CalculatedItem = {
   productId: mongoose.Types.ObjectId;
@@ -46,18 +47,99 @@ const calculateDiscount = (data: ICalculateDiscount): number => {
 
 const getAttribute = (
   attributes: { key: string; value: string }[],
-  key: string
+  key: string,
 ): string => attributes.find((a) => a.key === key)?.value ?? "";
+
+const resolveCustomer = async (
+  companyId: Types.ObjectId,
+  customerName: string,
+  customerPhone: string,
+  netAmount: number,
+  effectivePaid: number,
+  session: mongoose.ClientSession,
+): Promise<Types.ObjectId> => {
+  const existing = await Customer.findOne({
+    companyId,
+    phone: customerPhone,
+  }).session(session);
+  if (existing) {
+    await Customer.updateOne({ _id: existing._id }, [
+      {
+        $set: {
+          totalPurchased: { $add: ["$totalPurchased", netAmount] },
+          totalPaid: { $add: ["$totalPaid", effectivePaid] },
+          due: {
+            $max: [
+              0,
+              {
+                $subtract: [
+                  { $add: ["$totalPurchased", netAmount] },
+                  { $add: ["$totalPaid", effectivePaid] },
+                ],
+              },
+            ],
+          },
+          credit: {
+            $max: [
+              0,
+              {
+                $subtract: [
+                  { $add: ["$totalPaid", effectivePaid] },
+                  { $add: ["$totalPurchased", netAmount] },
+                ],
+              },
+            ],
+          },
+          name: customerName,
+          lastPurchasedAt: new Date(),
+        },
+      },
+    ]).session(session);
+    return existing._id;
+  }
+  const totalPurchased = netAmount;
+  const totalPaid = effectivePaid;
+  const due = Math.max(totalPurchased - totalPaid, 0);
+  const credit = Math.max(totalPaid - totalPurchased, 0);
+  const [customer] = await Customer.create(
+    [
+      {
+        companyId,
+        name: customerName,
+        phone: customerPhone,
+        totalPurchased,
+        totalPaid,
+        due,
+        credit,
+        lastPurchasedAt: new Date(),
+      },
+    ],
+    { session },
+  );
+  if (!customer) throw new AppError("Customer not created", 400);
+  return customer._id;
+};
 
 // ─── Main Service ─────────────────────────────────────────
 
 export const createSale = async (payload: ICreateSalePayload) => {
   const { companyId, createdBy, input } = payload;
-  const { customerName, customerPhone, items, paymentMethod, paidAmount, note } = input;
+  const {
+    customerName,
+    customerPhone,
+    items,
+    paymentMethod,
+    paidAmount,
+    note,
+    createdByType
+  } = input;
 
   // 1. block online payments
   if (paymentMethod === "card" || paymentMethod === "mobile_banking") {
-    throw new AppError("Online payments must use /orders/initiate endpoint", 400);
+    throw new AppError(
+      "Online payments must use /orders/initiate endpoint",
+      400,
+    );
   }
 
   const session = await mongoose.startSession();
@@ -108,14 +190,16 @@ export const createSale = async (payload: ICreateSalePayload) => {
       const product = productMap.get(item.productId);
       const variant = variantMap.get(item.variantId);
 
-      if (!product) throw new AppError(`Product not found: ${item.productId}`, 404);
-      if (!variant) throw new AppError(`Variant not found: ${item.variantId}`, 404);
+      if (!product)
+        throw new AppError(`Product not found: ${item.productId}`, 404);
+      if (!variant)
+        throw new AppError(`Variant not found: ${item.variantId}`, 404);
 
       // check variant belongs to this product
       if (variant.product_id.toString() !== item.productId) {
         throw new AppError(
           `Variant ${item.variantId} does not belong to product ${item.productId}`,
-          400
+          400,
         );
       }
 
@@ -123,7 +207,7 @@ export const createSale = async (payload: ICreateSalePayload) => {
       if (variant.stock < item.quantity) {
         throw new AppError(
           `Insufficient stock for ${product.name} - ${variant.sku}. Available: ${variant.stock}`,
-          400
+          400,
         );
       }
 
@@ -149,7 +233,7 @@ export const createSale = async (payload: ICreateSalePayload) => {
         size,
         sku: variant.sku,
         quantity: item.quantity,
-        unitPrice: variant.buying_price,   // from variant — actual cost
+        unitPrice: variant.buying_price, // from variant — actual cost
         sellingPrice: item.sellingPrice,
         discountType: item.discountType ?? null,
         discountValue: item.discountValue,
@@ -161,11 +245,11 @@ export const createSale = async (payload: ICreateSalePayload) => {
     // 5. calculate totals
     const grossAmount = calculatedItems.reduce(
       (sum, i) => sum + i.sellingPrice * i.quantity,
-      0
+      0,
     );
     const discountTotal = calculatedItems.reduce(
       (sum, i) => sum + i.discountAmount,
-      0
+      0,
     );
     const netAmount = grossAmount - discountTotal;
 
@@ -174,11 +258,23 @@ export const createSale = async (payload: ICreateSalePayload) => {
     const dueAmount = Math.max(netAmount - effectivePaid, 0);
     const changeAmount = Math.max(effectivePaid - netAmount, 0);
     const paymentStatus =
-      effectivePaid <= 0 ? "due"
-      : effectivePaid >= netAmount ? "paid"
-      : "partial";
+      effectivePaid <= 0
+        ? "due"
+        : effectivePaid >= netAmount
+          ? "paid"
+          : "partial";
 
-    // 7. deduct stock for each variant
+    // 7. resolve or create customer
+    const customerId = await resolveCustomer(
+      companyObjectId,
+      customerName,
+      customerPhone,
+      netAmount,
+      effectivePaid,
+      session,
+    );
+
+    // 8. deduct stock for each variant
     for (const item of calculatedItems) {
       await ProductVariant.updateOne(
         {
@@ -186,14 +282,14 @@ export const createSale = async (payload: ICreateSalePayload) => {
           company_id: companyObjectId,
         },
         { $inc: { stock: -item.quantity } },
-        { session }
+        { session },
       );
     }
 
-    // 8. generate sale code
+    // 9. generate sale code
     const saleCode = await generateSaleCode(companyId);
 
-    // 9. create sale
+    // 10. create sale
     const [sale] = await Sale.create(
       [
         {
@@ -202,7 +298,7 @@ export const createSale = async (payload: ICreateSalePayload) => {
           customer: {
             name: customerName,
             phone: customerPhone,
-            customerId: null, // CRM link comes later
+            customerId, // CRM link comes later
           },
           items: calculatedItems,
           grossAmount,
@@ -218,14 +314,14 @@ export const createSale = async (payload: ICreateSalePayload) => {
           note: note ?? null,
           status: "completed",
           createdBy: createdBy,
+          createdByType
         },
       ],
-      { session }
+      { session },
     );
 
     await session.commitTransaction();
     return sale;
-
   } catch (error) {
     await session.abortTransaction();
     throw error;
