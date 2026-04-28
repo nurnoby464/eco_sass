@@ -18,6 +18,8 @@ const product_route_1 = require("./module/product/product.route");
 const purchase_route_1 = require("./module/purchase/purchase.route");
 const product_variant_route_1 = require("./module/product-variant/product-variant.route");
 const public_route_1 = __importDefault(require("./module/public/public.route"));
+const sales_route_1 = require("./CRM/sales/sales.route");
+const customer_route_1 = require("./CRM/customer/customer.route");
 // routes
 // import authRoutes from './modules/auth/auth.routes';
 // import adminRoutes from './modules/admin/admin.routes';
@@ -80,6 +82,8 @@ app.use("/api/v1/category", category_route_1.CategoryRoutes);
 app.use("/api/v1/product", product_route_1.ProductRoutes);
 app.use("/api/v1/purchase", purchase_route_1.PurchaseRoute);
 app.use("/api/v1/product-variant", product_variant_route_1.ProductVariantRoute);
+app.use("/api/v1/sales", sales_route_1.SaleRouter);
+app.use("/api/v1/customer", customer_route_1.CustomerRouter);
 // app.use('/api/v1/customer', customerRoutes);
 // app.use('/api/v1/public',   publicRoutes);
 // Health check

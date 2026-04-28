@@ -1,16 +1,50 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteVariant = exports.updateVariant = exports.getVariantById = exports.getVariants = exports.createVariant = void 0;
-const mongoose_1 = __importDefault(require("mongoose"));
+exports.getAllProductWithVariant = exports.deleteVariant = exports.updateVariant = exports.getVariantById = exports.getVariants = exports.createVariant = void 0;
+const mongoose_1 = __importStar(require("mongoose"));
 const product_schema_1 = __importDefault(require("../product/product.schema"));
 const product_variant_schema_1 = __importDefault(require("../product-variant/product-variant.schema"));
 const appError_1 = require("../../middlewares/appError");
 const auditLogger_1 = require("../../utils/auditLogger");
 const audit_interface_1 = require("../audit/audit.interface");
 const sanitizeData_1 = require("../../utils/sanitizeData");
+const useSkip_1 = require("../../utils/useSkip");
 const createVariant = async (payload, req) => {
     const { product_id, company_id, ...rest } = payload;
     // product must exist, belong to company, and have has_variants = true
@@ -127,4 +161,188 @@ const deleteVariant = async (payload) => {
     return variant;
 };
 exports.deleteVariant = deleteVariant;
+const getAllProductWithVariant = async (payload) => {
+    const { req } = payload;
+    const query = req.validatedQuery;
+    const { page, limit, search, stock, sortBy, sortOrder } = query;
+    const lowStockNumber = 3;
+    const companyId = req.user.company_id;
+    if (!companyId) {
+        throw new appError_1.AppError("Company is required", 400);
+    }
+    const filter = {
+        company_id: new mongoose_1.Types.ObjectId(companyId),
+    };
+    if (search) {
+        const keywords = search.trim().split(/\s+/);
+        filter.$and = keywords.map((word) => ({
+            $or: [
+                { sku: { $regex: word, $options: "i" } },
+                { "attributes.value": { $regex: word, $options: "i" } },
+            ],
+        }));
+    }
+    if (stock && stock.trim() !== "") {
+        if (stock === "outOfStock") {
+            filter.stock = 0;
+        }
+        if (stock === "lowStock") {
+            filter.stock = { $lte: 3, $gte: 1 };
+        }
+        if (stock === "reminderStock") {
+            filter.$expr = {
+                $and: [
+                    { $lte: ["$stock", "$low_stock_alert"] },
+                    { $gte: ["$stock", 1] },
+                ],
+            };
+        }
+    }
+    const [result] = await product_variant_schema_1.default.aggregate([
+        { $match: { company_id: new mongoose_1.Types.ObjectId(companyId) } },
+        {
+            $facet: {
+                stats: [
+                    {
+                        $group: {
+                            _id: null,
+                            totalProduct: { $sum: 1 },
+                            outOfStock: {
+                                $sum: { $cond: [{ $eq: ["$stock", 0] }, 1, 0] },
+                            },
+                            lowStock: {
+                                $sum: {
+                                    $cond: [
+                                        {
+                                            $and: [
+                                                { $gte: ["$stock", 1] },
+                                                { $lte: ["$stock", lowStockNumber] },
+                                            ],
+                                        },
+                                        1,
+                                        0,
+                                    ],
+                                },
+                            },
+                            reminderStock: {
+                                $sum: {
+                                    $cond: [
+                                        {
+                                            $and: [
+                                                { $gte: ["$stock", 1] },
+                                                { $lte: ["$stock", "$low_stock_alert"] },
+                                            ],
+                                        },
+                                        1,
+                                        0,
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                ],
+                total: [{ $match: filter }, { $count: "count" }],
+                data: [
+                    { $match: filter },
+                    { $sort: { [sortBy]: sortOrder } },
+                    { $skip: (0, useSkip_1.useSkip)({ page, limit }) },
+                    { $limit: limit },
+                    {
+                        $lookup: {
+                            from: "products",
+                            localField: "product_id",
+                            foreignField: "_id",
+                            as: "_product",
+                            pipeline: [{ $project: { name: 1 } }],
+                        },
+                    },
+                    {
+                        $addFields: {
+                            productName: {
+                                $ifNull: [
+                                    { $arrayElemAt: ["$_product.name", 0] },
+                                    "Unknown Product",
+                                ],
+                            },
+                        },
+                    },
+                    {
+                        $addFields: {
+                            color: {
+                                $getField: {
+                                    field: "value",
+                                    input: {
+                                        $arrayElemAt: [
+                                            {
+                                                $filter: {
+                                                    input: "$attributes",
+                                                    as: "a",
+                                                    cond: { $eq: ["$$a.key", "color"] },
+                                                },
+                                            },
+                                            0,
+                                        ],
+                                    },
+                                },
+                            },
+                            size: {
+                                $getField: {
+                                    field: "value",
+                                    input: {
+                                        $arrayElemAt: [
+                                            {
+                                                $filter: {
+                                                    input: "$attributes",
+                                                    as: "a",
+                                                    cond: { $eq: ["$$a.key", "size"] },
+                                                },
+                                            },
+                                            0,
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    {
+                        $project: {
+                            _id: 1,
+                            product_id: 1,
+                            company_id: 1,
+                            sku: 1,
+                            image: 1,
+                            buying_price: 1,
+                            selling_price: 1,
+                            profit: 1,
+                            profit_margin: 1,
+                            stock: 1,
+                            low_stock_alert: 1,
+                            is_active: 1,
+                            productName: 1,
+                            color: 1,
+                            size: 1,
+                        },
+                    },
+                ],
+            },
+        },
+    ]);
+    const stats = result.stats[0] ?? {
+        totalProduct: 0,
+        outOfStock: 0,
+        lowStock: 0,
+        reminderStock: 0,
+    };
+    const total = result.total[0]?.count ?? 0;
+    const products = result.data;
+    const data = {
+        products,
+        totalProduct: stats.totalProduct,
+        outOfStock: stats.outOfStock,
+        lowStock: stats.lowStock,
+        reminderStock: stats.reminderStock,
+    };
+    return { data, total, query };
+};
+exports.getAllProductWithVariant = getAllProductWithVariant;
 //# sourceMappingURL=product-variant.service.js.map

@@ -249,7 +249,4 @@ const deleteProduct = async (payload) => {
     return product;
 };
 exports.deleteProduct = deleteProduct;
-// ═══════════════════════════════════════════════════════════
-// VARIANT SERVICES
-// ═══════════════════════════════════════════════════════════
 //# sourceMappingURL=product.service.js.map

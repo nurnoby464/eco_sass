@@ -4,4 +4,5 @@ export declare const getVariants: (req: Request, res: Response, next: import("ex
 export declare const getVariantById: (req: Request, res: Response, next: import("express").NextFunction) => void;
 export declare const updateVariant: (req: Request, res: Response, next: import("express").NextFunction) => void;
 export declare const deleteVariant: (req: Request, res: Response, next: import("express").NextFunction) => void;
+export declare const getAllProductWithVariant: (req: Request, res: Response, next: import("express").NextFunction) => void;
 //# sourceMappingURL=product-variant.controller.d.ts.map

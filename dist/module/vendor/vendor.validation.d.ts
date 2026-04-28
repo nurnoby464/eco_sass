@@ -2,14 +2,14 @@ import { z } from "zod";
 export declare const createVendorSchema: z.ZodObject<{
     name: z.ZodString;
     phone: z.ZodString;
-    email: z.ZodNullable<z.ZodOptional<z.ZodEmail>>;
-    address: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    email: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodString, z.ZodTransform<string | null, string>>, z.ZodNullable<z.ZodString>>>;
+    address: z.ZodNullable<z.ZodOptional<z.ZodPipe<z.ZodString, z.ZodTransform<string | null, string>>>>;
 }, z.core.$strip>;
 export declare const updateVendorSchema: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
     phone: z.ZodOptional<z.ZodString>;
-    email: z.ZodNullable<z.ZodOptional<z.ZodString>>;
-    address: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    email: z.ZodOptional<z.ZodPipe<z.ZodPipe<z.ZodString, z.ZodTransform<string | null, string>>, z.ZodNullable<z.ZodString>>>;
+    address: z.ZodNullable<z.ZodOptional<z.ZodPipe<z.ZodString, z.ZodTransform<string | null, string>>>>;
     is_active: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 export declare const addNoteSchema: z.ZodObject<{

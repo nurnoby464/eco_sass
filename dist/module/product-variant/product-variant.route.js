@@ -42,6 +42,9 @@ const ProductVariantController = __importStar(require("./product-variant.control
 const product_variant_validation_1 = require("./product-variant.validation");
 const variantRouter = (0, express_1.Router)({ mergeParams: true }); // mergeParams to access :id from parent
 variantRouter
+    .route("/all-products")
+    .get((0, validate_1.validate)({ query: product_variant_validation_1.productVariantQuerySchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, ProductVariantController.getAllProductWithVariant);
+variantRouter
     .route("/")
     .get((0, validate_1.validate)({ params: product_variant_validation_1.variantParamsSchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "inventory", "sales", "report"), ProductVariantController.getVariants)
     .post((0, validate_1.validate)({ params: product_variant_validation_1.variantParamsSchema, body: product_variant_validation_1.createVariantSchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "inventory"), ProductVariantController.createVariant);
