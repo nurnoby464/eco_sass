@@ -4,14 +4,18 @@ import { AuthServices } from "./auth.service";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { AppError } from "../../middlewares/appError";
 import { Types } from "mongoose";
+
+const isProduction = process.env.NODE_ENV === "production";
+
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
+  secure: isProduction,
   // sameSite: (process.env.NODE_ENV === "production" ? "strict" : "lax") as
   //   | "strict"
   //   | "lax",
-  sameSite: "none" as "none",
+  sameSite: isProduction ? ("none" as "none") : ("lax" as "lax"),
   maxAge: 1000 * 60 * 60 * 24 * 30,
+  path:"/"
 };
 
 const login = asyncHandler(async (req: Request, res: Response) => {
@@ -22,7 +26,7 @@ const login = asyncHandler(async (req: Request, res: Response) => {
 
 // ─── Logout ───────────────────────────────────────────────
 const logout = asyncHandler(async (req: Request, res: Response) => {
-  const refreshToken = req.cookies?.refreshToken;
+  const refreshToken = req.cookies?.eMultiRefreshToken;
   await AuthServices.logout(refreshToken);
 
   // clear the cookie
@@ -69,5 +73,5 @@ export const AuthController = {
   refresh,
   removeSession,
   updatePassword,
-  registerCustomer
+  registerCustomer,
 };

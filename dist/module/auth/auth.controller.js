@@ -6,14 +6,16 @@ const auth_service_1 = require("./auth.service");
 const ApiResponse_1 = require("../../utils/ApiResponse");
 const appError_1 = require("../../middlewares/appError");
 const mongoose_1 = require("mongoose");
+const isProduction = process.env.NODE_ENV === "production";
 const COOKIE_OPTIONS = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isProduction,
     // sameSite: (process.env.NODE_ENV === "production" ? "strict" : "lax") as
     //   | "strict"
     //   | "lax",
-    sameSite: "none",
+    sameSite: isProduction ? "none" : "lax",
     maxAge: 1000 * 60 * 60 * 24 * 30,
+    path: "/"
 };
 const login = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { refreshToken, ...result } = await auth_service_1.AuthServices.login(req.body, req);
@@ -22,7 +24,7 @@ const login = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
 });
 // ─── Logout ───────────────────────────────────────────────
 const logout = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const refreshToken = req.cookies?.refreshToken;
+    const refreshToken = req.cookies?.eMultiRefreshToken;
     await auth_service_1.AuthServices.logout(refreshToken);
     // clear the cookie
     res.clearCookie("eMultiRefreshToken", COOKIE_OPTIONS);
@@ -63,6 +65,6 @@ exports.AuthController = {
     refresh,
     removeSession,
     updatePassword,
-    registerCustomer: exports.registerCustomer
+    registerCustomer: exports.registerCustomer,
 };
 //# sourceMappingURL=auth.controller.js.map
