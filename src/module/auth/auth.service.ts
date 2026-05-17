@@ -147,6 +147,7 @@ const refresh = async (refreshToken: string) => {
   }
   // 2. find session
   const session = await Session.findById(decoded.sessionId);
+  console.log(session)
   if (!session || !session.valid) {
     throw new AppError("Session expired. Please log in again", 401);
   }

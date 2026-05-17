@@ -104,7 +104,7 @@ const saleSchema = new Schema<ISaleDocument>(
   },
   { timestamps: true },
 );
-saleSchema.index({ companyId: 1, sateDate: -1 });
+saleSchema.index({ companyId: 1, saleDate: -1 });
 saleSchema.index({ companyId: 1, paymentStatus: 1 });
 saleSchema.index({ companyId: 1, status: 1 });
 

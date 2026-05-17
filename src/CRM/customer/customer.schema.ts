@@ -36,9 +36,9 @@ const customerSchema = new Schema<ICustomerDocument>(
 );
 
 customerSchema.index({ companyId: 1, phone: 1 }, { unique: true });
-customerSchema.index({ companyId: 1, due: -1 });       // desending order due report
+customerSchema.index({ companyId: 1, email: 1 }, { unique: true, sparse: true });
+customerSchema.index({ companyId: 1, due: -1 }); // desending order due report
 customerSchema.index({ companyId: 1, lastPurchasedAt: -1 }); // recent customers
 
-const Customer = model<ICustomerDocument>("Customer",customerSchema);
-export default Customer
-
+const Customer = model<ICustomerDocument>("Customer", customerSchema);
+export default Customer;
