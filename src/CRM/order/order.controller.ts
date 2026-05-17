@@ -1,10 +1,17 @@
 import mongoose from "mongoose";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/asyncHandler";
-import * as CustomerServices from "./customer.service";
+import * as OrderServices from "./order.service";
 import { Request, Response } from "express";
 
-export const createSale = asyncHandler(async (req: Request, res: Response) => {
-  const result = await CustomerServices.createSale();
+export const createOrder = asyncHandler(async (req: Request, res: Response) => {
+  const companyId = req.company?._id;
+  if (!companyId) {
+    return ApiResponse.error(res, "Created Order place failed", 400);
+  }
+  const result = await OrderServices.createOrder({
+    companyId,
+    input: req.body,
+  });
   return ApiResponse.created(res, result, "sales created successfully");
 });

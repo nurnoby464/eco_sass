@@ -1,6 +1,6 @@
 import express from "express";
-import * as CustomerController from "./customer.controller";
+import * as OrderController from "./order.controller";
 
 const router = express.Router();
 
-export const CustomerRouter = router;
+export const OrderRouter = router;

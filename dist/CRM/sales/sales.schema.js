@@ -90,7 +90,7 @@ const saleSchema = new mongoose_1.Schema({
         default: "staff",
     },
 }, { timestamps: true });
-saleSchema.index({ companyId: 1, sateDate: -1 });
+saleSchema.index({ companyId: 1, saleDate: -1 });
 saleSchema.index({ companyId: 1, paymentStatus: 1 });
 saleSchema.index({ companyId: 1, status: 1 });
 const Sale = (0, mongoose_1.model)("Sale", saleSchema);

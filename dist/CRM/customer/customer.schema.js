@@ -28,6 +28,7 @@ const customerSchema = new mongoose_1.Schema({
     timestamps: true,
 });
 customerSchema.index({ companyId: 1, phone: 1 }, { unique: true });
+customerSchema.index({ companyId: 1, email: 1 }, { unique: true, sparse: true });
 customerSchema.index({ companyId: 1, due: -1 }); // desending order due report
 customerSchema.index({ companyId: 1, lastPurchasedAt: -1 }); // recent customers
 const Customer = (0, mongoose_1.model)("Customer", customerSchema);
