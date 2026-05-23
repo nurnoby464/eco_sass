@@ -33,12 +33,17 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createSale = void 0;
+exports.getCustomerList = void 0;
 const ApiResponse_1 = require("../../utils/ApiResponse");
 const asyncHandler_1 = require("../../utils/asyncHandler");
 const CustomerServices = __importStar(require("./customer.service"));
-exports.createSale = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const result = await CustomerServices.createSale();
+const appError_1 = require("../../middlewares/appError");
+exports.getCustomerList = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const companyId = req.company?._id;
+    if (!companyId) {
+        throw new appError_1.AppError("Company not found", 404);
+    }
+    const result = await CustomerServices.getCustomerList(req.validatedQuery, companyId);
     return ApiResponse_1.ApiResponse.created(res, result, "sales created successfully");
 });
 //# sourceMappingURL=customer.controller.js.map
