@@ -3,7 +3,6 @@ import { Document } from "mongoose";
 export interface IProduct {
     company_id: mongoose.Types.ObjectId;
     category_id: mongoose.Types.ObjectId;
-    vendor_id: mongoose.Types.ObjectId;
     name: string;
     slug: string;
     description: string | null;
@@ -16,6 +15,7 @@ export interface IProduct {
     stock: number;
     low_stock_alert: number;
     has_variants: boolean;
+    taxRate: number;
     is_active: boolean;
     createdBy: mongoose.Types.ObjectId;
     createdAt: Date;

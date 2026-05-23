@@ -44,15 +44,8 @@ const product_schema_1 = __importDefault(require("../../module/product/product.s
 const product_variant_schema_1 = __importDefault(require("../../module/product-variant/product-variant.schema"));
 const sales_schema_1 = __importDefault(require("./sales.schema"));
 const customer_schema_1 = __importDefault(require("../customer/customer.schema"));
+const healper_1 = require("../../utils/healper");
 // ─── Helpers ──────────────────────────────────────────────
-const calculateDiscount = (data) => {
-    const { sellingPrice, quantity, discountType, discountValue } = data;
-    if (!discountType || !discountValue)
-        return 0;
-    if (discountType === "flat")
-        return discountValue * quantity;
-    return Math.round((sellingPrice * discountValue) / 100) * quantity;
-};
 const getAttribute = (attributes, key) => attributes.find((a) => a.key === key)?.value ?? "";
 const resolveCustomer = async (companyId, customerName, customerPhone, netAmount, effectivePaid, session) => {
     const existing = await customer_schema_1.default.findOne({
@@ -173,7 +166,7 @@ const createSale = async (payload) => {
             const color = getAttribute(variant.attributes, "color");
             const size = getAttribute(variant.attributes, "size");
             // calculate discount
-            const discountAmount = calculateDiscount({
+            const discountAmount = (0, healper_1.calculateDiscount)({
                 sellingPrice: item.sellingPrice,
                 quantity: item.quantity,
                 discountType: item.discountType ?? null,

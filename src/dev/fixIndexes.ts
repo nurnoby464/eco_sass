@@ -1,4 +1,4 @@
-import { ObjectId, Types } from 'mongoose';
+import { ObjectId, Types } from "mongoose";
 // import dotenv from "dotenv";
 // dotenv.config();
 // import mongoose from "mongoose";
@@ -40,13 +40,17 @@ import { ObjectId, Types } from 'mongoose';
 // };
 
 // fix().catch(console.error);
-import express from "express"
-import { generateOderNumber } from '../utils/healper';
+import express from "express";
+import { generateInvoiceNumber, generateOderNumber } from "../utils/healper";
 
 const router = express.Router();
-router.post("/generateOrderNumber",async(req,res)=>{
-  const companyId = new Types.ObjectId()
-  const result = await generateOderNumber(companyId)
-  res.json({num:result})
-})
+router.post("/generateOrderNumber", async (req, res) => {
+  const companyId = new Types.ObjectId();
+  const result = await generateOderNumber(companyId);
+  res.json({ num: result });
+});
+router.post("/generateInvoiceNumber", async (req, res) => {
+  const result = await generateInvoiceNumber();
+  res.json({ num: result });
+});
 export const DevRouter = router;

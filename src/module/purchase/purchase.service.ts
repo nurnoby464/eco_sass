@@ -33,6 +33,8 @@ interface ResolvedLineItem {
   unit_price: number;
   selling_price: number;
   total: number;
+  color: string; // ← add
+  size: string; // ← add
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -232,7 +234,7 @@ async function bulkUpsertCategories(
 async function bulkUpsertProducts(
   items: CreatePurchaseInput["items"],
   categoryMap: Map<string, mongoose.Types.ObjectId>,
-  vendor_id: mongoose.Types.ObjectId,
+  // vendor_id: mongoose.Types.ObjectId,
   company_id: mongoose.Types.ObjectId,
   createdBy: mongoose.Types.ObjectId,
   session: ClientSession,
@@ -313,7 +315,7 @@ async function bulkUpsertProducts(
           return {
             company_id,
             category_id,
-            vendor_id,
+            // vendor_id,
             name: i.product_name!.trim(),
             slug: buildSlug(i.product_name!) + "-" + Date.now(),
             sku,
@@ -321,6 +323,7 @@ async function bulkUpsertProducts(
             selling_price: i.selling_price,
             has_variants: true,
             stock: 0,
+            images: i.images ?? [], // ← ADD THIS
             is_active: true,
             createdBy,
           };
@@ -462,6 +465,7 @@ async function bulkUpsertVariants(
           selling_price: item.selling_price,
           stock: item.quantity,
           low_stock_alert: item.low_stock_alert ?? 5,
+          image: item.images?.[0] ?? null,
           is_active: true,
         };
       }),
@@ -477,7 +481,54 @@ async function bulkUpsertVariants(
       map.set(key, { _id: v._id, sku: v.sku });
     });
   }
+  // ── Sync product stock from variants ─────────────────────
+  // runs after toCreate insertMany and toUpdate Promise.all
+  const affectedProductIds = [
+    ...new Set(items.map((i) => resolveProduct(i)._id.toString())),
+  ].map((id) => new mongoose.Types.ObjectId(id));
 
+  await Promise.all(
+    affectedProductIds.map(async (productId) => {
+      const agg = await ProductVariant.aggregate([
+        {
+          $match: {
+            product_id: productId,
+            company_id,
+            is_active: true,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalStock: { $sum: "$stock" },
+            avgBuyingPrice: { $avg: "$buying_price" },
+            avgSellingPrice: { $avg: "$selling_price" },
+          },
+        },
+      ],{session});
+
+      if (agg.length > 0) {
+        const { totalStock, avgBuyingPrice, avgSellingPrice } = agg[0];
+        const profit = round2(avgSellingPrice - avgBuyingPrice);
+        const profit_margin =
+          avgSellingPrice > 0 ? round2((profit / avgSellingPrice) * 100) : 0;
+
+        await Product.findByIdAndUpdate(
+          productId,
+          {
+            $set: {
+              stock: totalStock,
+              buying_price: round2(avgBuyingPrice),
+              selling_price: round2(avgSellingPrice),
+              profit,
+              profit_margin,
+            },
+          },
+          { session },
+        );
+      }
+    }),
+  );
   return map;
 }
 
@@ -531,7 +582,7 @@ export const createPurchase = async (
       const productMap = await bulkUpsertProducts(
         items,
         categoryMap,
-        vendor._id,
+        // vendor._id,
         company_id,
         createdBy,
         session,
@@ -580,6 +631,8 @@ export const createPurchase = async (
           unit_price: item.unit_price,
           selling_price: item.selling_price,
           total: round2(item.unit_price * item.quantity),
+          color: item.color,
+          size: item.size ?? "",
         };
       });
       if (resolvedItems.length === 0)
@@ -597,22 +650,22 @@ export const createPurchase = async (
         ...new Set(resolvedItems.map((i) => i.product_id.toString())),
       ].map((id) => new mongoose.Types.ObjectId(id));
 
-      const purchaseStart = new Date(purchase_date ?? new Date());
-      purchaseStart.setHours(0, 0, 0, 0);
-      const purchaseEnd = new Date(purchaseStart);
-      purchaseEnd.setHours(23, 59, 59, 999);
-      const duplicate = await Purchase.findOne({
-        company_id,
-        vendor_id: vendor._id,
-        product_ids: { $all: product_ids, $size: product_ids.length },
-        purchase_date: { $gte: purchaseStart, $lte: purchaseEnd },
-      }).session(session);
+      // const purchaseStart = new Date(purchase_date ?? new Date());
+      // purchaseStart.setHours(0, 0, 0, 0);
+      // const purchaseEnd = new Date(purchaseStart);
+      // purchaseEnd.setHours(23, 59, 59, 999);
+      // const duplicate = await Purchase.findOne({
+      //   company_id,
+      //   vendor_id: vendor._id,
+      //   product_ids: { $all: product_ids, $size: product_ids.length },
+      //   purchase_date: { $gte: purchaseStart, $lte: purchaseEnd },
+      // }).session(session);
 
-      if (duplicate)
-        throw new AppError(
-          "A purchase with the same vendor and products already exists for this date",
-          409,
-        );
+      // if (duplicate)
+      //   throw new AppError(
+      //     "A purchase with the same vendor and products already exists for this date",
+      //     409,
+      //   );
       // ── Create purchase document ─────────────────────────────────────────
       const [created] = await Purchase.create(
         [

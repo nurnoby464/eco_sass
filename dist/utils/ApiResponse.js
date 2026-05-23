@@ -2,11 +2,12 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ApiResponse = void 0;
 class ApiResponse {
-    static success(res, data, message = "Success", statusCode = 200) {
+    static success(res, data, message = "Success", statusCode = 200, meta) {
         return res.status(statusCode).json({
             success: true,
             message,
             data,
+            ...(meta !== undefined && { meta }),
         });
     }
     static created(res, data, message = "Created successfully") {
@@ -23,7 +24,7 @@ class ApiResponse {
             errors: Array.isArray(errors) ? errors : null,
         });
     }
-    static paginated(res, message = "Data fetched successfully", data, total, page, limit) {
+    static paginated(res, message = "Data fetched successfully", data, total, page, limit, meta) {
         const safeLimit = limit || 1;
         return res.status(200).json({
             success: true,
@@ -37,6 +38,7 @@ class ApiResponse {
                 hasNext: page < Math.ceil(total / safeLimit),
                 hasPrev: page > 1,
             },
+            ...(meta !== undefined && { meta }),
         });
     }
 }

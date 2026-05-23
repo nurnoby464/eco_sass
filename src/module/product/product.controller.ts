@@ -10,15 +10,7 @@ import { CreateProductInput } from "./product.validation";
 // PRODUCT
 // ═══════════════════════════════════════════════════════════
 
-export const createProduct = asyncHandler(
-  async (req: Request, res: Response) => {
-     const company_id = new mongoose.Types.ObjectId(req.user.company_id!);
-    const createdBy  = new mongoose.Types.ObjectId(req.user._id!);
-    const product = await ProductService.createProduct({ ...(req.body as CreateProductInput), company_id, createdBy }, req);
 
-    return ApiResponse.created(res, product, "Product created successfully");
-  },
-);
 
 export const getProducts = asyncHandler(async (req: Request, res: Response) => {
   const query = req.validatedQuery as {

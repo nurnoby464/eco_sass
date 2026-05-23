@@ -12,7 +12,10 @@ const appError_1 = require("../../middlewares/appError");
 //    result:      "COTTON-SHIR-0001-ORANGE-M"
 function buildVariantSku(parentSku, attributes) {
     const suffix = attributes
-        .map((a) => a.value.toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 8))
+        .map((a) => a.value
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, "-")
+        .slice(0, 8))
         .join("-");
     return `${parentSku}-${suffix}`;
 }
@@ -46,6 +49,13 @@ const ProductVariantSchema = new mongoose_1.Schema({
     profit_margin: { type: Number, default: 0 },
     stock: { type: Number, default: 0, min: 0 },
     low_stock_alert: { type: Number, default: 5 },
+    // in product-variant.schema.ts
+    discountType: {
+        type: String,
+        enum: ["flat", "percentage"],
+        default: null,
+    },
+    discountValue: { type: Number, default: 0 },
     is_active: { type: Boolean, default: true },
 }, { timestamps: true });
 // ── Auto-generate SKU if not provided ────────────────────────────────────────

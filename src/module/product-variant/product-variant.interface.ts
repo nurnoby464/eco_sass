@@ -22,6 +22,9 @@ export interface IProductVariant {
   stock: number;
   low_stock_alert: number;
 
+  discountType: "flat" | "percentage" | null;
+  discountValue: number;
+
   is_active: boolean;
   createdAt: Date;
   updatedAt: Date;

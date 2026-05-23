@@ -1,16 +1,5 @@
 import mongoose from "mongoose";
 import { Request } from "express";
-import { CreateProductInput } from "./product.validation";
-export declare const createProduct: (payload: CreateProductInput & {
-    company_id: mongoose.Types.ObjectId;
-    createdBy: mongoose.Types.ObjectId;
-}, req: Request) => Promise<mongoose.Document<unknown, {}, import("./product.interface").IProduct, {}, mongoose.DefaultSchemaOptions> & import("./product.interface").IProduct & {
-    _id: mongoose.Types.ObjectId;
-} & {
-    __v: number;
-} & {
-    id: string;
-}>;
 export declare const getProducts: (payload: {
     company_id: mongoose.Types.ObjectId;
     page: number;

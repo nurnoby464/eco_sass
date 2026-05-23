@@ -25,13 +25,6 @@ router
     verifySession,
     guard("super_admin", "admin", "inventory"),
     ProductController.getProducts,
-  )
-  .post(
-    validate({ body: createProductSchema }),
-    authenticate,
-    verifySession,
-    guard("super_admin", "admin", "inventory"),
-    ProductController.createProduct,
   );
 
 // ── /api/products/:id ─────────────────────────────────────

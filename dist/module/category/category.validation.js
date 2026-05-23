@@ -13,7 +13,11 @@ const objectId = zod_1.z
     message: "Invalid ObjectId",
 });
 exports.createCategorySchema = zod_1.z.object({
-    name: zod_1.z.string().trim().min(2, "Min 2 characters").max(100, "Max 100 characters"),
+    name: zod_1.z
+        .string()
+        .trim()
+        .min(2, "Min 2 characters")
+        .max(100, "Max 100 characters"),
     parent_id: objectId.optional().nullable(),
     image: zod_1.z.string().trim().url("Invalid image URL").optional().nullable(),
 });
@@ -26,11 +30,34 @@ exports.categoryParamsSchema = zod_1.z.object({
     id: objectId,
 });
 exports.categoryQuerySchema = zod_1.z.object({
-    page: zod_1.z.string().optional().transform((v) => parseInt(v ?? "1")),
-    limit: zod_1.z.string().optional().transform((v) => parseInt(v ?? "10")),
+    page: zod_1.z
+        .string()
+        .optional()
+        .transform((v) => parseInt(v ?? "1")),
+    limit: zod_1.z
+        .string()
+        .optional()
+        .transform((v) => parseInt(v ?? "10")),
     search: zod_1.z.string().trim().optional(),
-    parent_id: objectId.optional().nullable(),
-    depth: zod_1.z.string().optional().transform((v) => v ? parseInt(v) : undefined),
-    is_active: zod_1.z.enum(["true", "false"]).optional().transform((v) => v === undefined ? undefined : v === "true"),
+    parent_id: zod_1.z
+        .string()
+        .optional()
+        .transform((v) => {
+        if (v === undefined)
+            return undefined;
+        if (v === "null")
+            return null;
+        if (!mongoose_1.default.Types.ObjectId.isValid(v))
+            throw new Error("Invalid ObjectId");
+        return v;
+    }),
+    depth: zod_1.z
+        .string()
+        .optional()
+        .transform((v) => (v ? parseInt(v) : undefined)),
+    is_active: zod_1.z
+        .enum(["true", "false"])
+        .optional()
+        .transform((v) => (v === undefined ? undefined : v === "true")),
 });
 //# sourceMappingURL=category.validation.js.map

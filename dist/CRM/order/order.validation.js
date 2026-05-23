@@ -1,7 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getOrderListSchema = exports.updatePaymentInput = exports.updatePaymentParam = exports.updateOrderStatusSchema = exports.createOrderSchema = void 0;
+exports.getOrderByIdParam = exports.getOrderListQuery = exports.updatePaymentBody = exports.updatePaymentParam = exports.updateOrderStatusBody = exports.updateOrderStatusParam = exports.createOrderBody = void 0;
+// src/module/order/order.validation.ts
 const zod_1 = require("zod");
+// ─── Sub-schemas ──────────────────────────────────────────────────────────────
 const orderItemSchema = zod_1.z.object({
     variant_id: zod_1.z.string().trim().min(1, "Variant ID is required"),
     quantity: zod_1.z.number().int().min(1, "Quantity must be at least 1"),
@@ -9,12 +11,13 @@ const orderItemSchema = zod_1.z.object({
 const shippingAddressSchema = zod_1.z.object({
     name: zod_1.z.string().trim().min(1, "Recipient name is required"),
     phone: zod_1.z.string().trim().min(1, "Recipient phone is required"),
-    email: zod_1.z.string().trim().email("Invalid email").nullable().default(null),
+    // email: z.string().trim().email("Invalid email").nullable().default(null),
     address: zod_1.z.string().trim().min(1, "Address is required"),
     city: zod_1.z.string().trim().min(1, "City is required"),
     zip: zod_1.z.string().trim().nullable().default(null),
 });
-exports.createOrderSchema = zod_1.z.object({
+// ─── Create Order ─────────────────────────────────────────────────────────────
+exports.createOrderBody = zod_1.z.object({
     // customer identification
     phone: zod_1.z.string().trim().min(1, "Customer phone is required"),
     name: zod_1.z.string().trim().min(1, "Customer name is required"),
@@ -29,42 +32,65 @@ exports.createOrderSchema = zod_1.z.object({
     shipping_charge: zod_1.z.number().min(0).default(0),
     paid_amount: zod_1.z.number().min(0).default(0),
     payment_method: zod_1.z
-        .enum(["cash", "card", "mobile_banking", "online"])
+        .enum([
+        "cash",
+        "cash_on_delivery",
+        "card",
+        "mobile_banking",
+        "credit",
+        "online",
+    ])
         .nullable()
         .default(null),
     note: zod_1.z.string().trim().nullable().default(null),
 });
-exports.updateOrderStatusSchema = zod_1.z.object({
-    params: zod_1.z.object({
-        id: zod_1.z.string().trim().min(1, "Order ID is required"),
-    }),
-    body: zod_1.z.object({
-        order_status: zod_1.z.enum([
-            "pending",
-            "processing",
-            "shipped",
-            "delivered",
-            "cancelled",
-        ]),
-    }),
+// ─── Update Order Status ──────────────────────────────────────────────────────
+exports.updateOrderStatusParam = zod_1.z.object({
+    id: zod_1.z.string().trim().min(1, "Order ID is required"),
 });
+exports.updateOrderStatusBody = zod_1.z.object({
+    order_status: zod_1.z.enum([
+        "pending",
+        "processing",
+        "shipped",
+        "delivered",
+        "cancelled",
+    ]),
+});
+// ─── Update Payment ───────────────────────────────────────────────────────────
 exports.updatePaymentParam = zod_1.z.object({
     id: zod_1.z.string().trim().min(1, "Order ID is required"),
 });
-exports.updatePaymentInput = zod_1.z.object({
+exports.updatePaymentBody = zod_1.z.object({
     paid_amount: zod_1.z.number().min(1, "Paid amount must be greater than 0"),
     payment_method: zod_1.z.enum(["cash", "card", "mobile_banking", "online"]),
 });
-exports.getOrderListSchema = zod_1.z.object({
-    query: zod_1.z.object({
-        page: zod_1.z.string().optional(),
-        limit: zod_1.z.string().optional(),
-        order_status: zod_1.z
-            .enum(["pending", "processing", "shipped", "delivered", "cancelled"])
-            .optional(),
-        payment_status: zod_1.z.enum(["unpaid", "partial", "paid"]).optional(),
-        customer_id: zod_1.z.string().optional(),
-        search: zod_1.z.string().optional(), // search by order_number
-    }),
+// ─── Get Order List ───────────────────────────────────────────────────────────
+exports.getOrderListQuery = zod_1.z.object({
+    page: zod_1.z
+        .string()
+        .optional()
+        .transform((v) => parseInt(v ?? "1")),
+    limit: zod_1.z
+        .string()
+        .optional()
+        .transform((v) => parseInt(v ?? "10")),
+    orderStatus: zod_1.z
+        .string()
+        .transform((v) => v.toLowerCase())
+        .pipe(zod_1.z.enum(["pending", "processing", "shipped", "delivered", "cancelled"]))
+        .optional(),
+    paymentStatus: zod_1.z.enum(["unpaid", "partial", "paid"]).optional(),
+    customerId: zod_1.z.string().optional(),
+    search: zod_1.z.string().optional(), // search by order_number
+    sortBy: zod_1.z.enum(["name", "createdAt", "stock"]).default("createdAt"),
+    sortOrder: zod_1.z
+        .enum(["asc", "dsc"])
+        .default("dsc")
+        .transform((v) => (v === "asc" ? 1 : -1)),
+});
+// ─── Get Order By ID ──────────────────────────────────────────────────────────
+exports.getOrderByIdParam = zod_1.z.object({
+    id: zod_1.z.string().trim().min(1, "Order ID is required"),
 });
 //# sourceMappingURL=order.validation.js.map

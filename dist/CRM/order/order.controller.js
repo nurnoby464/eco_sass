@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createOrder = void 0;
+exports.getAllOrder = exports.createOrder = void 0;
 const ApiResponse_1 = require("../../utils/ApiResponse");
 const asyncHandler_1 = require("../../utils/asyncHandler");
 const OrderServices = __importStar(require("./order.service"));
@@ -46,6 +46,32 @@ exports.createOrder = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         companyId,
         input: req.body,
     });
-    return ApiResponse_1.ApiResponse.created(res, result, "sales created successfully");
+    return ApiResponse_1.ApiResponse.created(res, result, "Order created successfully");
+});
+exports.getAllOrder = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const companyId = req.company?._id;
+    const limit = req.validatedQuery.limit;
+    const page = req.validatedQuery.page;
+    const sortBy = req.validatedQuery.sortBy;
+    const search = req.validatedQuery.search;
+    const sortOrder = req.validatedQuery.sortOrder;
+    const orderStatus = req.validatedQuery.orderStatus;
+    const paymentStatus = req.validatedQuery.paymentStatus;
+    const customerId = req.validatedQuery.customerId;
+    if (!companyId) {
+        return ApiResponse_1.ApiResponse.error(res, "Created Order place failed", 400);
+    }
+    const query = {
+        limit,
+        page,
+        sortBy,
+        sortOrder,
+        search,
+        orderStatus,
+        paymentStatus,
+        customerId,
+    };
+    const { orders, total, orderStatusCounts } = await OrderServices.getAllOrder(companyId, query);
+    return ApiResponse_1.ApiResponse.paginated(res, "Order fetched successfully", orders, total, page, limit, orderStatusCounts);
 });
 //# sourceMappingURL=order.controller.js.map

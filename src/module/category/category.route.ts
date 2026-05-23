@@ -1,4 +1,4 @@
-// src/module/category/category.route.ts
+// category.route.ts
 import { Router } from "express";
 import { validate } from "../../middlewares/validate";
 import * as CategoryController from "./category.controller";
@@ -8,10 +8,7 @@ import {
   categoryParamsSchema,
   categoryQuerySchema,
 } from "./category.validation";
-import {
-  authenticate,
-  verifySession,
-} from "../../middlewares/AuthenticateHelper";
+import { authenticate, verifySession } from "../../middlewares/AuthenticateHelper";
 import { guard } from "../../middlewares/guard";
 
 const router = Router();
@@ -32,6 +29,16 @@ router
     verifySession,
     guard("super_admin", "admin", "inventory"),
     CategoryController.createCategory,
+  );
+
+// ── /api/categories/tree ──────────────────────────────────
+router
+  .route("/tree")
+  .get(
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    CategoryController.getCategoryTree,
   );
 
 // ── /api/categories/:id/tree ──────────────────────────────

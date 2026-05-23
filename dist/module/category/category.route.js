@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CategoryRoutes = void 0;
-// src/module/category/category.route.ts
+// category.route.ts
 const express_1 = require("express");
 const validate_1 = require("../../middlewares/validate");
 const CategoryController = __importStar(require("./category.controller"));
@@ -47,6 +47,10 @@ router
     .route("/")
     .get((0, validate_1.validate)({ query: category_validation_1.categoryQuerySchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "inventory"), CategoryController.getCategories)
     .post((0, validate_1.validate)({ body: category_validation_1.createCategorySchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "inventory"), CategoryController.createCategory);
+// ── /api/categories/tree ──────────────────────────────────
+router
+    .route("/tree")
+    .get(AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "inventory"), CategoryController.getCategoryTree);
 // ── /api/categories/:id/tree ──────────────────────────────
 router
     .route("/:id/tree")

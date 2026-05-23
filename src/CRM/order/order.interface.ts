@@ -11,12 +11,11 @@ export type TOrderStatus =
 
 export type TPaymentStatus = "unpaid" | "partial" | "paid";
 
-
 export interface IOrderItem {
-  product_id: Types.ObjectId;
-  variant_id: Types.ObjectId;
-  name: string;        // snapshot — product name at order time
-  sku: string;         // snapshot
+  product: Types.ObjectId;
+  variant: Types.ObjectId;
+  name: string; // snapshot — product name at order time
+  sku: string; // snapshot
   quantity: number;
   unit_price: number;
   total_price: number; // quantity * unit_price
@@ -33,8 +32,8 @@ export interface IShippingAddress {
 
 export interface IOrder {
   company_id: Types.ObjectId;
-  order_number: string;        // e.g. "ORD-0001"
-  customer_id: Types.ObjectId;
+  order_number: string; // e.g. "ORD-0001"
+  customer: Types.ObjectId;
 
   items: IOrderItem[];
   shipping_address: IShippingAddress;
@@ -46,7 +45,7 @@ export interface IOrder {
   grand_total: number;
 
   paid_amount: number;
-  due_amount: number;          // grand_total - paid_amount
+  due_amount: number; // grand_total - paid_amount
 
   payment_status: TPaymentStatus;
   payment_method: PaymentMethod | null;
@@ -60,4 +59,17 @@ export interface IOrderDocument extends IOrder, Document {}
 export interface ICreateOrderPayload {
   companyId: Types.ObjectId;
   input: TCreateOrderInput;
+}
+
+export type IEmptyOrderItem = IOrderItem | [];
+
+export interface OrderQuery {
+  page: number;
+  limit: number;
+  search?: string;
+  customerId?: string;
+  paymentStatus?: TPaymentStatus;
+  orderStatus?: TOrderStatus;
+  sortBy: string;
+  sortOrder: 1 | -1;
 }

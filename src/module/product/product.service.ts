@@ -19,81 +19,81 @@ const generateSlug = (name: string): string => {
   return slug || `product-${Date.now()}`;
 };
 
-const assertUniqProductSku = async (
-  sku: string,
-  company_id: mongoose.Types.ObjectId,
-  excludeId?: string,
-) => {
-  const filter: Record<string, unknown> = { company_id, sku };
-  if (excludeId) filter._id = { $ne: excludeId };
-  const exists = await Product.findOne(filter).lean();
-  if (exists) throw new AppError(`Product SKU "${sku}" already exists`, 409);
-};
+// const assertUniqProductSku = async (
+//   sku: string,
+//   company_id: mongoose.Types.ObjectId,
+//   excludeId?: string,
+// ) => {
+//   const filter: Record<string, unknown> = { company_id, sku };
+//   if (excludeId) filter._id = { $ne: excludeId };
+//   const exists = await Product.findOne(filter).lean();
+//   if (exists) throw new AppError(`Product SKU "${sku}" already exists`, 409);
+// };
 
-const assertUniqVariantSku = async (
-  sku: string,
-  company_id: mongoose.Types.ObjectId,
-  excludeId?: string,
-) => {
-  const filter: Record<string, unknown> = { company_id, sku };
-  if (excludeId) filter._id = { $ne: excludeId };
-  const exists = await ProductVariant.findOne(filter).lean();
-  if (exists) throw new AppError(`Variant SKU "${sku}" already exists`, 409);
-};
+// const assertUniqVariantSku = async (
+//   sku: string,
+//   company_id: mongoose.Types.ObjectId,
+//   excludeId?: string,
+// ) => {
+//   const filter: Record<string, unknown> = { company_id, sku };
+//   if (excludeId) filter._id = { $ne: excludeId };
+//   const exists = await ProductVariant.findOne(filter).lean();
+//   if (exists) throw new AppError(`Variant SKU "${sku}" already exists`, 409);
+// };
 
 // ─── Create product ───────────────────────────────────────
-export const createProduct = async (
-  payload: CreateProductInput & {
-    company_id: mongoose.Types.ObjectId;
-    createdBy: mongoose.Types.ObjectId;
-  },
-  req: Request,
-) => {
-  const { company_id, createdBy, ...rest } = payload;
+// export const createProduct = async (
+//   payload: CreateProductInput & {
+//     company_id: mongoose.Types.ObjectId;
+//     createdBy: mongoose.Types.ObjectId;
+//   },
+//   req: Request,
+// ) => {
+//   const { company_id, createdBy, ...rest } = payload;
 
-  // validate category belongs to company
-  // const category = await Category.findOne({
-  //   _id: category_id,
-  //   company_id,
-  //   is_active: true,
-  // }).lean();
-  // if (!category) throw new AppError("Category not found or inactive", 404);
-  const slug = generateSlug(rest.name);
-  // validate vendor belongs to company
-  // const vendor = await Vendor.findOne({
-  //   _id: vendor_id,
-  //   company_id,
-  //   is_active: true,
-  // }).lean();
-  // if (!vendor) throw new AppError("Vendor not found or inactive", 404);
+//   // validate category belongs to company
+//   // const category = await Category.findOne({
+//   //   _id: category_id,
+//   //   company_id,
+//   //   is_active: true,
+//   // }).lean();
+//   // if (!category) throw new AppError("Category not found or inactive", 404);
+//   const slug = generateSlug(rest.name);
+//   // validate vendor belongs to company
+//   // const vendor = await Vendor.findOne({
+//   //   _id: vendor_id,
+//   //   company_id,
+//   //   is_active: true,
+//   // }).lean();
+//   // if (!vendor) throw new AppError("Vendor not found or inactive", 404);
 
-  // unique slug check
-  const slugExists = await Product.findOne({ company_id, slug }).lean();
-  if (slugExists)
-    throw new AppError(`Product "${rest.name}" already exists`, 409);
+//   // unique slug check
+//   const slugExists = await Product.findOne({ company_id, slug }).lean();
+//   if (slugExists)
+//     throw new AppError(`Product "${rest.name}" already exists`, 409);
 
-  const product = await Product.create(
-    sanitizeData({ ...rest, company_id, createdBy, slug }),
-  );
+//   const product = await Product.create(
+//     sanitizeData({ ...rest, company_id, createdBy, slug }),
+//   );
 
-  auditLog({
-    req,
-    action: AUDIT_ACTIONS.PRODUCT_CREATED,
-    targetModel: "Product",
-    targetId: product._id,
-    after: {
-      name: product.name,
-      slug: product.slug,
-      buying_price: product.buying_price,
-      selling_price: product.selling_price,
-      description: product.description,
-      category_id: product.category_id,
-      vendor_id: product.vendor_id,
-    },
-  });
+//   auditLog({
+//     req,
+//     action: AUDIT_ACTIONS.PRODUCT_CREATED,
+//     targetModel: "Product",
+//     targetId: product._id,
+//     after: {
+//       name: product.name,
+//       slug: product.slug,
+//       buying_price: product.buying_price,
+//       selling_price: product.selling_price,
+//       description: product.description,
+//       category_id: product.category_id,
+//       vendor_id: product.vendor_id,
+//     },
+//   });
 
-  return product;
-};
+//   return product;
+// };
 
 // ─── Get all products (paginated) ────────────────────────
 export const getProducts = async (payload: {
@@ -122,13 +122,25 @@ export const getProducts = async (payload: {
     sort_by,
     sort_order,
   } = payload;
-  
+
   if (!company_id) throw new AppError("company_id is required", 400);
   const filter: Record<string, unknown> = { company_id };
 
   if (is_active !== undefined) filter.is_active = is_active;
   if (has_variants !== undefined) filter.has_variants = has_variants;
-  if (category_id) filter.category_id = category_id;
+  if (category_id) {
+    const allDescendantCategories = await Category.find({
+      company_id,
+      path: new mongoose.Types.ObjectId(category_id), // ✅ array contains match
+      is_active: true,
+    }).lean();
+
+    const allCategoryIds = [
+      new mongoose.Types.ObjectId(category_id),
+      ...allDescendantCategories.map((c) => c._id),
+    ];
+    filter.category_id = { $in: allCategoryIds };
+  }
   if (vendor_id) filter.vendor_id = vendor_id;
 
   // low stock filter — stock <= low_stock_alert
@@ -148,7 +160,7 @@ export const getProducts = async (payload: {
   const [products, total] = await Promise.all([
     Product.find(filter)
       .populate("category_id", "name slug depth")
-      .populate("vendor_id", "name phone")
+      // .populate("vendor_id", "name phone")
       .sort({ [sort_by]: sortDir })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -169,7 +181,7 @@ export const getProductById = async (payload: {
     company_id: payload.company_id,
   })
     .populate("category_id", "name slug path depth")
-    .populate("vendor_id", "name phone email")
+    // .populate("vendor_id", "name phone email")
     .populate("createdBy", "name email")
     .lean();
 
@@ -179,6 +191,7 @@ export const getProductById = async (payload: {
   let variants: any[] = [];
   if (product.has_variants) {
     variants = await ProductVariant.find({
+      company_id: payload.company_id,
       product_id: payload.id,
       is_active: true,
     }).lean();
@@ -229,13 +242,13 @@ export const updateProduct = async (payload: {
       is_active: true,
     }).lean();
     if (!vendor) throw new AppError("Vendor not found or inactive", 404);
-    product.vendor_id = new mongoose.Types.ObjectId(data.vendor_id);
+    // product.vendor_id = new mongoose.Types.ObjectId(data.vendor_id);
   }
   const before: Record<string, unknown> = {
     name: product.name,
     company_id: product.company_id,
     category_id: product.category_id,
-    vendor_id: product.vendor_id,
+    // vendor_id: product.vendor_id,
   };
 
   // regenerate slug if name changes
@@ -284,7 +297,7 @@ export const updateProduct = async (payload: {
       selling_price: product.selling_price,
       company_id: product.company_id,
       category_id: product.category_id,
-      vendor_id: product.vendor_id,
+      // vendor_id: product.vendor_id,
     },
   });
   return product;
@@ -321,5 +334,3 @@ export const deleteProduct = async (payload: {
   });
   return product;
 };
-
-

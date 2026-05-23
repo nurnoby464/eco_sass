@@ -4,8 +4,8 @@ import { TCreateOrderInput } from "./order.validation";
 export type TOrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
 export type TPaymentStatus = "unpaid" | "partial" | "paid";
 export interface IOrderItem {
-    product_id: Types.ObjectId;
-    variant_id: Types.ObjectId;
+    product: Types.ObjectId;
+    variant: Types.ObjectId;
     name: string;
     sku: string;
     quantity: number;
@@ -23,7 +23,7 @@ export interface IShippingAddress {
 export interface IOrder {
     company_id: Types.ObjectId;
     order_number: string;
-    customer_id: Types.ObjectId;
+    customer: Types.ObjectId;
     items: IOrderItem[];
     shipping_address: IShippingAddress;
     subtotal: number;
@@ -43,5 +43,16 @@ export interface IOrderDocument extends IOrder, Document {
 export interface ICreateOrderPayload {
     companyId: Types.ObjectId;
     input: TCreateOrderInput;
+}
+export type IEmptyOrderItem = IOrderItem | [];
+export interface OrderQuery {
+    page: number;
+    limit: number;
+    search?: string;
+    customerId?: string;
+    paymentStatus?: TPaymentStatus;
+    orderStatus?: TOrderStatus;
+    sortBy: string;
+    sortOrder: 1 | -1;
 }
 //# sourceMappingURL=order.interface.d.ts.map

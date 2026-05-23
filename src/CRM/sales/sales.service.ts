@@ -6,6 +6,7 @@ import Product from "../../module/product/product.schema";
 import ProductVariant from "../../module/product-variant/product-variant.schema";
 import Sale from "./sales.schema";
 import Customer from "../customer/customer.schema";
+import { calculateDiscount } from "../../utils/healper";
 
 type CalculatedItem = {
   productId: mongoose.Types.ObjectId;
@@ -23,12 +24,7 @@ type CalculatedItem = {
   subtotal: number;
 };
 
-interface ICalculateDiscount {
-  sellingPrice: number;
-  quantity: number;
-  discountType: "flat" | "percentage" | null;
-  discountValue: number;
-}
+
 
 interface ICreateSalePayload {
   companyId: mongoose.Types.ObjectId;
@@ -38,12 +34,7 @@ interface ICreateSalePayload {
 
 // ─── Helpers ──────────────────────────────────────────────
 
-const calculateDiscount = (data: ICalculateDiscount): number => {
-  const { sellingPrice, quantity, discountType, discountValue } = data;
-  if (!discountType || !discountValue) return 0;
-  if (discountType === "flat") return discountValue * quantity;
-  return Math.round((sellingPrice * discountValue) / 100) * quantity;
-};
+
 
 const getAttribute = (
   attributes: { key: string; value: string }[],

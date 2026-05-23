@@ -149,7 +149,9 @@ async function bulkUpsertCategories(items, company_id, createdBy, session) {
     return map;
 }
 // ─── Stage 2: Bulk upsert products ───────────────────────────────────────────
-async function bulkUpsertProducts(items, categoryMap, vendor_id, company_id, createdBy, session) {
+async function bulkUpsertProducts(items, categoryMap, 
+// vendor_id: mongoose.Types.ObjectId,
+company_id, createdBy, session) {
     const map = new Map();
     const withId = items.filter((i) => i.productId);
     const withName = items.filter((i) => !i.productId && i.product_name);
@@ -203,7 +205,7 @@ async function bulkUpsertProducts(items, categoryMap, vendor_id, company_id, cre
                 return {
                     company_id,
                     category_id,
-                    vendor_id,
+                    // vendor_id,
                     name: i.product_name.trim(),
                     slug: buildSlug(i.product_name) + "-" + Date.now(),
                     sku,
@@ -211,6 +213,7 @@ async function bulkUpsertProducts(items, categoryMap, vendor_id, company_id, cre
                     selling_price: i.selling_price,
                     has_variants: true,
                     stock: 0,
+                    images: i.images ?? [], // ← ADD THIS
                     is_active: true,
                     createdBy,
                 };
@@ -299,6 +302,7 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
                 selling_price: item.selling_price,
                 stock: item.quantity,
                 low_stock_alert: item.low_stock_alert ?? 5,
+                image: item.images?.[0] ?? null,
                 is_active: true,
             };
         }), { session });
@@ -309,6 +313,44 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
             map.set(key, { _id: v._id, sku: v.sku });
         });
     }
+    // ── Sync product stock from variants ─────────────────────
+    // runs after toCreate insertMany and toUpdate Promise.all
+    const affectedProductIds = [
+        ...new Set(items.map((i) => resolveProduct(i)._id.toString())),
+    ].map((id) => new mongoose_1.default.Types.ObjectId(id));
+    await Promise.all(affectedProductIds.map(async (productId) => {
+        const agg = await product_variant_schema_1.default.aggregate([
+            {
+                $match: {
+                    product_id: productId,
+                    company_id,
+                    is_active: true,
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalStock: { $sum: "$stock" },
+                    avgBuyingPrice: { $avg: "$buying_price" },
+                    avgSellingPrice: { $avg: "$selling_price" },
+                },
+            },
+        ], { session });
+        if (agg.length > 0) {
+            const { totalStock, avgBuyingPrice, avgSellingPrice } = agg[0];
+            const profit = round2(avgSellingPrice - avgBuyingPrice);
+            const profit_margin = avgSellingPrice > 0 ? round2((profit / avgSellingPrice) * 100) : 0;
+            await product_schema_1.default.findByIdAndUpdate(productId, {
+                $set: {
+                    stock: totalStock,
+                    buying_price: round2(avgBuyingPrice),
+                    selling_price: round2(avgSellingPrice),
+                    profit,
+                    profit_margin,
+                },
+            }, { session });
+        }
+    }));
     return map;
 }
 // ─── Create purchase ──────────────────────────────────────────────────────────
@@ -329,7 +371,9 @@ const createPurchase = async (payload, req) => {
             // ── Stage 1: Categories ──────────────────────────────────────────────
             const categoryMap = await bulkUpsertCategories(items, company_id, createdBy, session);
             // ── Stage 2: Products ────────────────────────────────────────────────
-            const productMap = await bulkUpsertProducts(items, categoryMap, vendor._id, company_id, createdBy, session);
+            const productMap = await bulkUpsertProducts(items, categoryMap, 
+            // vendor._id,
+            company_id, createdBy, session);
             // ── Stage 3: Variants ────────────────────────────────────────────────
             const variantMap = await bulkUpsertVariants(items, productMap, company_id, session);
             // ── Build resolved line items from maps (zero extra DB calls) ────────
@@ -353,6 +397,8 @@ const createPurchase = async (payload, req) => {
                     unit_price: item.unit_price,
                     selling_price: item.selling_price,
                     total: round2(item.unit_price * item.quantity),
+                    color: item.color,
+                    size: item.size ?? "",
                 };
             });
             if (resolvedItems.length === 0)
@@ -363,18 +409,21 @@ const createPurchase = async (payload, req) => {
             const product_ids = [
                 ...new Set(resolvedItems.map((i) => i.product_id.toString())),
             ].map((id) => new mongoose_1.default.Types.ObjectId(id));
-            const purchaseStart = new Date(purchase_date ?? new Date());
-            purchaseStart.setHours(0, 0, 0, 0);
-            const purchaseEnd = new Date(purchaseStart);
-            purchaseEnd.setHours(23, 59, 59, 999);
-            const duplicate = await purchase_schema_1.default.findOne({
-                company_id,
-                vendor_id: vendor._id,
-                product_ids: { $all: product_ids, $size: product_ids.length },
-                purchase_date: { $gte: purchaseStart, $lte: purchaseEnd },
-            }).session(session);
-            if (duplicate)
-                throw new appError_1.AppError("A purchase with the same vendor and products already exists for this date", 409);
+            // const purchaseStart = new Date(purchase_date ?? new Date());
+            // purchaseStart.setHours(0, 0, 0, 0);
+            // const purchaseEnd = new Date(purchaseStart);
+            // purchaseEnd.setHours(23, 59, 59, 999);
+            // const duplicate = await Purchase.findOne({
+            //   company_id,
+            //   vendor_id: vendor._id,
+            //   product_ids: { $all: product_ids, $size: product_ids.length },
+            //   purchase_date: { $gte: purchaseStart, $lte: purchaseEnd },
+            // }).session(session);
+            // if (duplicate)
+            //   throw new AppError(
+            //     "A purchase with the same vendor and products already exists for this date",
+            //     409,
+            //   );
             // ── Create purchase document ─────────────────────────────────────────
             const [created] = await purchase_schema_1.default.create([
                 {

@@ -32,24 +32,14 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteProduct = exports.updateProduct = exports.getProductById = exports.getProducts = exports.createProduct = void 0;
+exports.deleteProduct = exports.updateProduct = exports.getProductById = exports.getProducts = void 0;
 const asyncHandler_1 = require("../../utils/asyncHandler");
 const ApiResponse_1 = require("../../utils/ApiResponse");
 const ProductService = __importStar(require("./product.service"));
-const mongoose_1 = __importDefault(require("mongoose"));
 // ═══════════════════════════════════════════════════════════
 // PRODUCT
 // ═══════════════════════════════════════════════════════════
-exports.createProduct = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const company_id = new mongoose_1.default.Types.ObjectId(req.user.company_id);
-    const createdBy = new mongoose_1.default.Types.ObjectId(req.user._id);
-    const product = await ProductService.createProduct({ ...req.body, company_id, createdBy }, req);
-    return ApiResponse_1.ApiResponse.created(res, product, "Product created successfully");
-});
 exports.getProducts = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const query = req.validatedQuery;
     const { products, total } = await ProductService.getProducts({

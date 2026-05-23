@@ -6,11 +6,13 @@ export class ApiResponse {
     data: any,
     message = "Success",
     statusCode = 200,
+    meta?: Record<string, unknown> | unknown[],
   ) {
     return res.status(statusCode).json({
       success: true,
       message,
       data,
+      ...(meta !== undefined && { meta }),
     });
   }
 
@@ -42,6 +44,7 @@ export class ApiResponse {
     total: number,
     page: number,
     limit: number,
+    meta?: Record<string, unknown> | unknown[],
   ) {
     const safeLimit = limit || 1;
 
@@ -57,6 +60,7 @@ export class ApiResponse {
         hasNext: page < Math.ceil(total / safeLimit),
         hasPrev: page > 1,
       },
+      ...(meta !== undefined && { meta }),
     });
   }
 }

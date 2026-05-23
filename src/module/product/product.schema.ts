@@ -34,7 +34,7 @@ const ProductSchema = new Schema<IProduct>(
       ref: "Category",
       required: true,
     },
-    vendor_id: { type: Schema.Types.ObjectId, ref: "Vendor", required: true },
+    // vendor_id: { type: Schema.Types.ObjectId, ref: "Vendor", required: true },
 
     name: {
       type: String,
@@ -67,6 +67,7 @@ const ProductSchema = new Schema<IProduct>(
 
     has_variants: { type: Boolean, default: false },
     is_active: { type: Boolean, default: true },
+    taxRate: { type: Number, default: 0 },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true },
@@ -95,7 +96,7 @@ ProductSchema.pre("save", async function () {
 // ── Indexes ───────────────────────────────────────────────────────────────────
 ProductSchema.index({ company_id: 1, is_active: 1 });
 ProductSchema.index({ company_id: 1, category_id: 1 });
-ProductSchema.index({ company_id: 1, vendor_id: 1 });
+// ProductSchema.index({ company_id: 1, vendor_id: 1 });
 ProductSchema.index({ company_id: 1, stock: 1 });
 ProductSchema.index({ company_id: 1, sku: 1 }, { unique: true });
 ProductSchema.index({ company_id: 1, slug: 1 }, { unique: true });

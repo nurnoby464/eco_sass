@@ -21,12 +21,12 @@ export const companyIdentifier = async (
   }
   if (!company) {
     const companyId = req.headers["x-company-id"] as string | undefined;
-    console.log("company id", companyId)
     if (companyId) {
       company = await Company.findOne({ _id: companyId, status: "active" })
         .select("_id company_name logo subdomain domain status")
         .lean<any>();
     }
+    console.log("companyId in req.headers",companyId)
   }
 
   if (!company && req.params.company_id) {

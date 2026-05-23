@@ -45,8 +45,7 @@ const router = (0, express_1.Router)();
 // ── /api/products ─────────────────────────────────────────
 router
     .route("/")
-    .get((0, validate_1.validate)({ query: product_validation_1.productQuerySchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "inventory"), ProductController.getProducts)
-    .post((0, validate_1.validate)({ body: product_validation_1.createProductSchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "inventory"), ProductController.createProduct);
+    .get((0, validate_1.validate)({ query: product_validation_1.productQuerySchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "inventory"), ProductController.getProducts);
 // ── /api/products/:id ─────────────────────────────────────
 router
     .route("/:id")

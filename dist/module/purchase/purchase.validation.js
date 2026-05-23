@@ -33,7 +33,8 @@ const purchaseItemSchema = zod_1.z
     unit_price: zod_1.z.number({ error: "Unit price is required" }).min(0),
     selling_price: zod_1.z.number({ error: "Selling price is required" }).min(0),
     quantity: zod_1.z.number().int().positive("Quantity must be a positive integer"),
-    low_stock_alert: zod_1.z.number().int().min(0).optional().default(5),
+    images: zod_1.z.array(zod_1.z.string().url()).optional().default([]),
+    low_stock_alert: zod_1.z.coerce.number().int().min(0).optional().default(0),
 })
     .superRefine((data, ctx) => {
     if (!data.productId || data.productId.trim() === "") {
@@ -66,7 +67,7 @@ exports.createPurchaseSchema = zod_1.z
         .trim()
         .date("Must be a valid date YYYY-MM-DD")
         .optional(),
-    paid_amount: zod_1.z.number().min(0).optional().default(0),
+    paid_amount: zod_1.z.coerce.number().min(0).optional().default(0),
     note: zod_1.z.string().trim().max(2000).optional(),
     items: zod_1.z
         .array(purchaseItemSchema)

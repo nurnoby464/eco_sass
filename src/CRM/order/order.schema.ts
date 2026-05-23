@@ -3,8 +3,8 @@ import { IOrderDocument, IOrderItem } from "./order.interface";
 
 const orderItemSchema = new Schema<IOrderItem>(
   {
-    product_id: { type: Schema.Types.ObjectId, ref: "Product", required: true },
-    variant_id: {
+    product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
+    variant: {
       type: Schema.Types.ObjectId,
       ref: "ProductVariant",
       required: true,
@@ -34,7 +34,7 @@ const orderSchema = new Schema<IOrderDocument>(
   {
     company_id: { type: Schema.Types.ObjectId, ref: "Company", required: true },
     order_number: { type: String, required: true },
-    customer_id: {
+    customer: {
       type: Schema.Types.ObjectId,
       ref: "Customer",
       required: true,
@@ -61,7 +61,7 @@ const orderSchema = new Schema<IOrderDocument>(
       type: String,
       enum: [
         "cash",
-        "cash_on_deliver",
+        "cash_on_delivery",
         "card",
         "mobile_banking",
         "credit",

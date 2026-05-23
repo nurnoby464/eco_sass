@@ -19,12 +19,12 @@ const companyIdentifier = async (req, res, next) => {
     }
     if (!company) {
         const companyId = req.headers["x-company-id"];
-        console.log("company id", companyId);
         if (companyId) {
             company = await company_schema_1.default.findOne({ _id: companyId, status: "active" })
                 .select("_id company_name logo subdomain domain status")
                 .lean();
         }
+        console.log("companyId in req.headers", companyId);
     }
     if (!company && req.params.company_id) {
         const company = await company_schema_1.default.findOne({

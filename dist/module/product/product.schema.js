@@ -27,7 +27,7 @@ const ProductSchema = new mongoose_1.Schema({
         ref: "Category",
         required: true,
     },
-    vendor_id: { type: mongoose_1.Schema.Types.ObjectId, ref: "Vendor", required: true },
+    // vendor_id: { type: Schema.Types.ObjectId, ref: "Vendor", required: true },
     name: {
         type: String,
         required: [true, "Product name is required"],
@@ -54,6 +54,7 @@ const ProductSchema = new mongoose_1.Schema({
     low_stock_alert: { type: Number, default: 10 },
     has_variants: { type: Boolean, default: false },
     is_active: { type: Boolean, default: true },
+    taxRate: { type: Number, default: 0 },
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
 }, { timestamps: true });
 // ── Auto-generate SKU if not provided ────────────────────────────────────────
@@ -73,7 +74,7 @@ ProductSchema.pre("save", async function () {
 // ── Indexes ───────────────────────────────────────────────────────────────────
 ProductSchema.index({ company_id: 1, is_active: 1 });
 ProductSchema.index({ company_id: 1, category_id: 1 });
-ProductSchema.index({ company_id: 1, vendor_id: 1 });
+// ProductSchema.index({ company_id: 1, vendor_id: 1 });
 ProductSchema.index({ company_id: 1, stock: 1 });
 ProductSchema.index({ company_id: 1, sku: 1 }, { unique: true });
 ProductSchema.index({ company_id: 1, slug: 1 }, { unique: true });

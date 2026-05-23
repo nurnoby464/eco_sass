@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { Request } from "express";
+import { ICategoryDocument } from "./category.interface";
 export declare const createCategory: (payload: {
     company_id: mongoose.Types.ObjectId;
     name: string;
@@ -7,12 +8,21 @@ export declare const createCategory: (payload: {
     image?: string | null;
     createdBy: mongoose.Types.ObjectId;
     req: Request;
-}) => Promise<mongoose.Document<unknown, {}, import("./category.interface").ICategoryDocument, {}, mongoose.DefaultSchemaOptions> & import("./category.interface").ICategoryDocument & Required<{
+}) => Promise<mongoose.Document<unknown, {}, ICategoryDocument, {}, mongoose.DefaultSchemaOptions> & ICategoryDocument & Required<{
     _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
 } & {
     id: string;
+}>;
+export declare const getCategoryTree: (payload: {
+    company_id: mongoose.Types.ObjectId;
+    query?: string;
+    skip: number;
+    limit: number;
+}) => Promise<{
+    categories: CategorySearchItem[];
+    total: number;
 }>;
 export declare const getCategories: (payload: {
     company_id: mongoose.Types.ObjectId;
@@ -23,32 +33,17 @@ export declare const getCategories: (payload: {
     depth?: number;
     is_active?: boolean;
 }) => Promise<{
-    categories: (import("./category.interface").ICategoryDocument & Required<{
+    categories: (ICategoryDocument & Required<{
         _id: mongoose.Types.ObjectId;
     }> & {
         __v: number;
     })[];
     total: number;
 }>;
-export declare const getCategoryTree: (payload: {
-    company_id: mongoose.Types.ObjectId;
-    id: string;
-}) => Promise<{
-    root: import("./category.interface").ICategoryDocument & Required<{
-        _id: mongoose.Types.ObjectId;
-    }> & {
-        __v: number;
-    };
-    descendants: (import("./category.interface").ICategoryDocument & Required<{
-        _id: mongoose.Types.ObjectId;
-    }> & {
-        __v: number;
-    })[];
-}>;
 export declare const getCategoryById: (payload: {
     id: string;
     company_id: mongoose.Types.ObjectId;
-}) => Promise<import("./category.interface").ICategoryDocument & Required<{
+}) => Promise<ICategoryDocument & Required<{
     _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
@@ -62,7 +57,7 @@ export declare const updateCategory: (payload: {
         image?: string | null;
         is_active?: boolean;
     };
-}) => Promise<mongoose.Document<unknown, {}, import("./category.interface").ICategoryDocument, {}, mongoose.DefaultSchemaOptions> & import("./category.interface").ICategoryDocument & Required<{
+}) => Promise<mongoose.Document<unknown, {}, ICategoryDocument, {}, mongoose.DefaultSchemaOptions> & ICategoryDocument & Required<{
     _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
@@ -73,11 +68,38 @@ export declare const deleteCategory: (payload: {
     id: string;
     company_id: mongoose.Types.ObjectId;
     req: Request;
-}) => Promise<mongoose.Document<unknown, {}, import("./category.interface").ICategoryDocument, {}, mongoose.DefaultSchemaOptions> & import("./category.interface").ICategoryDocument & Required<{
+}) => Promise<mongoose.Document<unknown, {}, ICategoryDocument, {}, mongoose.DefaultSchemaOptions> & ICategoryDocument & Required<{
     _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
 } & {
     id: string;
 }>;
+type AncestorItem = {
+    _id: mongoose.Types.ObjectId;
+    name: string;
+    depth: number;
+};
+type CategorySearchItem = {
+    _id: mongoose.Types.ObjectId;
+    name: string;
+    slug: string;
+    fullPath: string;
+    parentId: mongoose.Types.ObjectId | null;
+    parentName: string | null;
+    ancestors: AncestorItem[];
+    depth: number;
+    hasChildren: boolean;
+    image: string | null;
+};
+export declare const searchCategories: (payload: {
+    company_id: mongoose.Types.ObjectId;
+    search?: string;
+    skip: number;
+    limit: number;
+}) => Promise<{
+    categories: CategorySearchItem[];
+    total: number;
+}>;
+export {};
 //# sourceMappingURL=category.service.d.ts.map

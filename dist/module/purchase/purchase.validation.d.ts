@@ -9,7 +9,8 @@ declare const purchaseItemSchema: z.ZodObject<{
     unit_price: z.ZodNumber;
     selling_price: z.ZodNumber;
     quantity: z.ZodNumber;
-    low_stock_alert: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    images: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodString>>>;
+    low_stock_alert: z.ZodDefault<z.ZodOptional<z.ZodCoercedNumber<unknown>>>;
 }, z.core.$strip>;
 export declare const createPurchaseSchema: z.ZodObject<{
     vendor_id: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
@@ -17,7 +18,7 @@ export declare const createPurchaseSchema: z.ZodObject<{
     vendorPhone: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
     vendorEmail: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
     purchase_date: z.ZodOptional<z.ZodString>;
-    paid_amount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    paid_amount: z.ZodDefault<z.ZodOptional<z.ZodCoercedNumber<unknown>>>;
     note: z.ZodOptional<z.ZodString>;
     items: z.ZodArray<z.ZodObject<{
         product_name: z.ZodUnion<[z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodPipe<z.ZodLiteral<"">, z.ZodTransform<undefined, "">>]>, z.ZodPipe<z.ZodNull, z.ZodTransform<undefined, null>>]>;
@@ -29,7 +30,8 @@ export declare const createPurchaseSchema: z.ZodObject<{
         unit_price: z.ZodNumber;
         selling_price: z.ZodNumber;
         quantity: z.ZodNumber;
-        low_stock_alert: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        images: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodString>>>;
+        low_stock_alert: z.ZodDefault<z.ZodOptional<z.ZodCoercedNumber<unknown>>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const updatePurchaseSchema: z.ZodObject<{

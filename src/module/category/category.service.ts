@@ -1,4 +1,4 @@
-// src/module/category/category.service.ts
+// category.service.ts
 import mongoose from "mongoose";
 import slugify from "slugify";
 import Category from "./category.schema";
@@ -6,11 +6,12 @@ import { AppError } from "../../middlewares/appError";
 import { Request } from "express";
 import { auditLog } from "../../utils/auditLogger";
 import { AUDIT_ACTIONS } from "../audit/audit.interface";
+import { AnyARecord } from "node:dns";
+import { ICategoryDocument } from "./category.interface";
 
 // ─── helpers ─────────────────────────────────────────────
 const generateSlug = (name: string): string => {
   const slug = slugify(name, { lower: true, strict: true });
-  // fallback for non-latin scripts (Bengali etc.)
   return slug || `category-${Date.now()}`;
 };
 
@@ -25,7 +26,9 @@ const assertUniqSlug = async (
   if (exists) throw new AppError(`Category "${slug}" already exists`, 409);
 };
 
-// ─── Create ───────────────────────────────────────────────
+// ─── Create Category ─────────────────────────────────────
+// category.service.ts - Update createCategory
+
 export const createCategory = async (payload: {
   company_id: mongoose.Types.ObjectId;
   name: string;
@@ -39,8 +42,7 @@ export const createCategory = async (payload: {
   const slug = generateSlug(name);
   await assertUniqSlug(slug, company_id);
 
-  // resolve path + depth from parent
-  let path = "";
+  let path: mongoose.Types.ObjectId[] = [];
   let depth = 0;
 
   if (parent_id) {
@@ -52,7 +54,8 @@ export const createCategory = async (payload: {
     if (!parent.is_active)
       throw new AppError("Parent category is inactive", 400);
 
-    path = parent.path ? `${parent.path},${parent._id}` : `${parent._id}`;
+    // ✅ Array spread instead of string concatenation
+    path = [...parent.path, parent._id];
     depth = parent.depth + 1;
   }
 
@@ -67,23 +70,240 @@ export const createCategory = async (payload: {
     createdBy,
   });
 
-  auditLog({
-    req: payload.req,
-    action: AUDIT_ACTIONS.CATEGORY_CREATED,
-    targetModel: "Category",
-    targetId: category._id,
-    after: {
-      name: category.name,
-      path: category.path,
-      depth: category.depth,
-      image: category.image,
-    },
-  });
-
   return category;
 };
 
-// ─── Get all (paginated) ──────────────────────────────────
+// ─── Get Category Tree (Nested Structure) ─────────────────
+// export const getCategoryTree = async (payload: {
+//   company_id: mongoose.Types.ObjectId;
+//   id?: string;
+// }) => {
+//   const { company_id, id } = payload;
+
+//   const allCategories = await Category.find({
+//     company_id,
+//     is_active: true,
+//   }).sort({ depth: 1, name: 1 }).lean();
+//   console.log(allCategories)
+
+//   const buildTree = (parentId: string | null = null): any[] => {
+//     return allCategories
+//       .filter(cat => {
+//         if (parentId === null) return !cat.parent_id;
+//         return cat.parent_id?.toString() === parentId;
+//       })
+//       .map(cat => ({
+//         id: cat._id,
+//         _id:cat._id,
+//         name: cat.name,
+//         slug: cat.slug,
+//         image: cat.image,
+//         depth: cat.depth,
+//         parent_id: cat.parent_id,
+//         children: buildTree(cat._id.toString())
+//       }));
+//   };
+
+//   if (id) {
+//     // Get specific root and its tree
+//     const root = allCategories.find(cat => cat._id.toString() === id);
+//     if (!root) throw new AppError("Category not found", 404);
+//     return buildTree(id);
+//   } else {
+//     // Get full tree (all root categories)
+//     return buildTree();
+//   }
+// };
+type LeanCategory = {
+  _id: mongoose.Types.ObjectId;
+  name: string;
+  slug: string;
+  depth: number;
+  parent_id: mongoose.Types.ObjectId | null;
+  path: string;
+  is_active: boolean;
+  company_id: mongoose.Types.ObjectId;
+  image: string | null;
+};
+
+type CategoryFlatItem = {
+  _id: mongoose.Types.ObjectId;
+  name: string;
+  fullPath: string;
+  depth: number;
+  parentId: mongoose.Types.ObjectId | null;
+};
+
+// export const getCategoryTree = async (payload: {
+//   company_id: mongoose.Types.ObjectId;
+//   search?: string;
+// }): Promise<CategoryFlatItem[]> => {
+//   const { company_id, search } = payload;
+
+//   let categories: LeanCategory[];
+
+//   if (search) {
+//     const matched = await Category.findOne({
+//       company_id,
+//       is_active: true,
+//       name: { $regex: search.trim(), $options: "i" },
+//     }).lean<LeanCategory>();
+
+//     if (!matched) return [];
+
+//     categories = await Category.find({
+//       company_id,
+//       is_active: true,
+//       $or: [{ _id: matched._id }, { path: matched._id.toHexString() }],
+//     }).lean<LeanCategory[]>();
+//   } else {
+//     categories = await Category.find({ company_id, is_active: true })
+//       .sort({ path: 1, name: 1 })
+//       .lean<LeanCategory[]>();
+//   }
+
+//   // build id->name map for breadcrumb
+//   const nameMap = new Map<string, string>();
+//   categories.forEach((c) => nameMap.set(c._id.toHexString(), c.name));
+
+//   const getFullPath = (c: LeanCategory): string => {
+//     if (!c.path) return c.name;
+//     const ancestorNames = c.path
+//       .split(",")
+//       .map((id) => nameMap.get(id))
+//       .filter(Boolean);
+//     return [...ancestorNames, c.name].join(" > ");
+//   };
+
+//   return categories
+//     .sort((a, b) => {
+//       const pathA = a.path ? `${a.path},${a._id}` : a._id.toHexString();
+//       const pathB = b.path ? `${b.path},${b._id}` : b._id.toHexString();
+//       return pathA.localeCompare(pathB);
+//     })
+//     .map((c) => ({
+//       _id: c._id,
+//       name: c.name,
+//       fullPath: getFullPath(c),
+//       depth: c.depth,
+//       parentId: c.parent_id,
+//     }));
+// };
+
+export const getCategoryTree = async (payload: {
+  company_id: mongoose.Types.ObjectId;
+  query?: string;
+  skip: number;
+  limit: number;
+}) => {
+  const { company_id, query, skip, limit } = payload;
+
+  const baseFilter: any = {
+    company_id,
+    is_active: true,
+  };
+
+  let matched: LeanCategory[];
+  let total: number;
+
+  if (query) {
+    // 1. find the matched category first
+    const root = await Category.findOne({
+      ...baseFilter,
+      name: { $regex: query.trim(), $options: "i" },
+    }).lean<LeanCategory>();
+
+    if (!root) return { categories: [], total: 0 };
+
+    // 2. fetch root + all descendants
+    const descendantFilter = {
+      ...baseFilter,
+      $or: [{ _id: root._id }, { path: { $regex: root._id.toHexString() } }],
+    };
+
+    [matched, total] = await Promise.all([
+      Category.find(descendantFilter)
+        .sort({ depth: 1, name: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean<LeanCategory[]>(),
+      Category.countDocuments(descendantFilter),
+    ]);
+  } else {
+    [matched, total] = await Promise.all([
+      Category.find(baseFilter)
+        .sort({ depth: 1, name: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean<LeanCategory[]>(),
+      Category.countDocuments(baseFilter),
+    ]);
+  }
+
+  if (!matched.length) return { categories: [], total };
+
+  // collect all ancestor IDs
+  const allAncestorIds = new Set<string>();
+  matched.forEach((c) => {
+    if (c.path) c.path.split(",").forEach((id) => allAncestorIds.add(id));
+  });
+
+  // fetch ancestors in one query
+  const ancestors = await Category.find({
+    _id: { $in: Array.from(allAncestorIds) },
+  })
+    .select("_id name depth")
+    .lean<LeanCategory[]>();
+
+  const ancestorMap = new Map<string, LeanCategory>();
+  ancestors.forEach((a) => ancestorMap.set(a._id.toHexString(), a));
+
+  // hasChildren check
+  const childDocs = await Category.find({
+    company_id,
+    is_active: true,
+    parent_id: { $in: matched.map((c) => c._id) },
+  })
+    .select("parent_id")
+    .lean<{ parent_id: mongoose.Types.ObjectId }[]>();
+
+  const hasChildrenSet = new Set(
+    childDocs.map((c) => c.parent_id.toHexString()),
+  );
+
+  const categories: CategorySearchItem[] = matched.map((c) => {
+    const ancestorIds = c.path ? c.path.split(",") : [];
+    const ancestorList: AncestorItem[] = ancestorIds
+      .map((id) => {
+        const a = ancestorMap.get(id);
+        return a ? { _id: a._id, name: a.name, depth: a.depth } : null;
+      })
+      .filter(Boolean) as AncestorItem[];
+
+    const parent = c.parent_id
+      ? ancestorMap.get(c.parent_id.toHexString())
+      : null;
+
+    const fullPath = [...ancestorList.map((a) => a.name), c.name].join(" > ");
+
+    return {
+      _id: c._id,
+      name: c.name,
+      slug: c.slug,
+      fullPath,
+      parentId: c.parent_id ?? null,
+      parentName: parent?.name ?? null,
+      ancestors: ancestorList,
+      depth: c.depth,
+      hasChildren: hasChildrenSet.has(c._id.toHexString()),
+      image: c.image ?? null,
+    };
+  });
+
+  return { categories, total };
+};
+
+// ─── Get All Categories (Flat List with Pagination) ───────
 export const getCategories = async (payload: {
   company_id: mongoose.Types.ObjectId;
   page: number;
@@ -100,10 +320,6 @@ export const getCategories = async (payload: {
 
   if (is_active !== undefined) filter.is_active = is_active;
   if (depth !== undefined) filter.depth = depth;
-
-  // explicit parent_id filter
-  // null  → fetch only root categories
-  // id    → fetch direct children of that parent
   if (parent_id !== undefined) filter.parent_id = parent_id ?? null;
 
   if (search) {
@@ -123,28 +339,7 @@ export const getCategories = async (payload: {
   return { categories, total };
 };
 
-// ─── Get tree (all descendants of a root) ────────────────
-export const getCategoryTree = async (payload: {
-  company_id: mongoose.Types.ObjectId;
-  id: string;
-}) => {
-  const { company_id, id } = payload;
-
-  const root = await Category.findOne({ _id: id, company_id }).lean();
-  if (!root) throw new AppError("Category not found", 404);
-
-  // fetch all descendants using path
-  const descendants = await Category.find({
-    company_id,
-    path: { $regex: id },
-  })
-    .sort({ depth: 1, name: 1 })
-    .lean();
-
-  return { root, descendants };
-};
-
-// ─── Get one ──────────────────────────────────────────────
+// ─── Get Single Category ──────────────────────────────────
 export const getCategoryById = async (payload: {
   id: string;
   company_id: mongoose.Types.ObjectId;
@@ -160,14 +355,14 @@ export const getCategoryById = async (payload: {
   return category;
 };
 
-// ─── Update ───────────────────────────────────────────────
+// ─── Update Category ──────────────────────────────────────
 export const updateCategory = async (payload: {
   id: string;
   company_id: mongoose.Types.ObjectId;
   req: Request;
   data: {
     name?: string;
-    image?: string | null;
+    image?: string | null; // Just the URL from Cloudinary
     is_active?: boolean;
   };
 }) => {
@@ -175,8 +370,10 @@ export const updateCategory = async (payload: {
 
   const category = await Category.findOne({ _id: id, company_id });
   if (!category) throw new AppError("Category not found", 404);
+
   const before: Record<string, unknown> = {
     name: category.name,
+    image: category.image,
   };
 
   // if name changes — regenerate slug and check uniqueness
@@ -191,6 +388,7 @@ export const updateCategory = async (payload: {
   if (data.is_active !== undefined) category.is_active = data.is_active;
 
   await category.save();
+
   auditLog({
     req: payload.req,
     action: AUDIT_ACTIONS.CATEGORY_UPDATED,
@@ -199,12 +397,14 @@ export const updateCategory = async (payload: {
     before: before,
     after: {
       name: category.name,
+      image: category.image,
     },
   });
+
   return category;
 };
 
-// ─── Delete ───────────────────────────────────────────────
+// ─── Delete Category (Soft Delete) ────────────────────────
 export const deleteCategory = async (payload: {
   id: string;
   company_id: mongoose.Types.ObjectId;
@@ -214,11 +414,8 @@ export const deleteCategory = async (payload: {
 
   const category = await Category.findOne({ _id: id, company_id });
   if (!category) throw new AppError("Category not found", 404);
-  const before = {
-    name: category.name,
-  };
 
-  // block delete if it has children
+  // Check for children
   const hasChildren = await Category.exists({ company_id, parent_id: id });
   if (hasChildren) {
     throw new AppError(
@@ -229,13 +426,150 @@ export const deleteCategory = async (payload: {
 
   category.is_active = false;
   await category.save();
+
   auditLog({
     req: payload.req,
     action: AUDIT_ACTIONS.CATEGORY_DELETED,
     targetModel: "Category",
     targetId: category._id,
-    before: before,
+    before: { name: category.name },
     after: null,
   });
+
   return category;
+};
+
+// category.service.ts - Add this new function
+
+type AncestorItem = {
+  _id: mongoose.Types.ObjectId;
+  name: string;
+  depth: number;
+};
+
+type CategorySearchItem = {
+  _id: mongoose.Types.ObjectId;
+  name: string;
+  slug: string;
+  fullPath: string;
+  parentId: mongoose.Types.ObjectId | null;
+  parentName: string | null;
+  ancestors: AncestorItem[];
+  depth: number;
+  hasChildren: boolean;
+  image: string | null;
+};
+
+export const searchCategories = async (payload: {
+  company_id: mongoose.Types.ObjectId;
+  search?: string;
+  skip: number;
+  limit: number;
+}): Promise<{ categories: CategorySearchItem[]; total: number }> => {
+  const { company_id, search, skip, limit } = payload;
+
+  const baseFilter: Record<string, unknown> = {
+    company_id,
+    is_active: true,
+  };
+
+  let matched: ICategoryDocument[];
+  let total: number;
+
+  if (search?.trim()) {
+    // 1. find the root match
+    const root = await Category.findOne({
+      ...baseFilter,
+      name: { $regex: `^${search.trim()}$`, $options: "i" },
+    }).lean<ICategoryDocument>();
+
+    if (!root) return { categories: [], total: 0 };
+
+    // 2. fetch root + all descendants
+    const descendantFilter: Record<string, unknown> = {
+      company_id,
+      is_active: true,
+      $or: [{ _id: root._id }, { path: root._id }],
+    };
+
+    [matched, total] = await Promise.all([
+      Category.find(descendantFilter)
+        .sort({ depth: 1, name: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean<ICategoryDocument[]>(),
+      Category.countDocuments(descendantFilter),
+    ]);
+  } else {
+    [matched, total] = await Promise.all([
+      Category.find(baseFilter)
+        .sort({ depth: 1, name: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean<ICategoryDocument[]>(),
+      Category.countDocuments(baseFilter),
+    ]);
+  }
+
+  if (!matched.length) return { categories: [], total };
+
+  // collect all ancestor IDs across all matched — one flat set
+  const allAncestorIds = new Set<string>();
+  matched.forEach((c) => {
+    c.path?.forEach((id) => allAncestorIds.add(id.toHexString()));
+  });
+
+  // fetch all ancestors in ONE query
+  const ancestorDocs = await Category.find({
+    _id: { $in: Array.from(allAncestorIds) },
+  })
+    .select("_id name depth")
+    .lean<ICategoryDocument[]>();
+
+  const ancestorMap = new Map<string, ICategoryDocument>();
+  ancestorDocs.forEach((a) => ancestorMap.set(a._id.toHexString(), a));
+
+  // check hasChildren for all matched in ONE query
+  const childDocs = await Category.find({
+    company_id,
+    is_active: true,
+    parent_id: { $in: matched.map((c) => c._id) },
+  })
+    .select("parent_id")
+    .lean<{ parent_id: mongoose.Types.ObjectId }[]>();
+
+  const hasChildrenSet = new Set(
+    childDocs.map((c) => c.parent_id.toHexString()),
+  );
+
+  // build response — pure in-memory, no more DB calls
+  const categories: CategorySearchItem[] = matched.map((c) => {
+    const ancestorList = (c.path ?? [])
+      .map((id) => {
+        const a = ancestorMap.get(id.toHexString());
+        return a ? { _id: a._id, name: a.name, depth: a.depth } : null;
+      })
+      .filter(Boolean) as AncestorItem[];
+
+    const parent = c.parent_id
+      ? ancestorMap.get(c.parent_id.toHexString())
+      : null;
+
+    const fullPath = [...ancestorList.map((a) => a.name), c.name].join(" > ");
+
+    return {
+      _id: c._id,
+      name: c.name,
+      slug: c.slug,
+      fullPath,
+      parentId: c.parent_id ?? null,
+      parentName: parent?.name ?? null,
+      ancestors: ancestorList,
+      depth: c.depth,
+      hasChildren: hasChildrenSet.has(c._id.toHexString()),
+      image: c.image ?? null,
+    };
+  });
+
+  return { categories, total };
 };

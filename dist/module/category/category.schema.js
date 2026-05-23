@@ -23,31 +23,36 @@ const CategorySchema = new mongoose_1.Schema({
     },
     parent_id: {
         type: mongoose_1.Schema.Types.ObjectId,
-        ref: "Category", // self-reference — works fine
+        ref: "Category",
         default: null,
     },
     path: {
-        type: String,
-        default: "",
-        // root:  ""  or  "selfId"
-        // child: "parentId,selfId"
-        // grandchild: "grandParentId,parentId,selfId"
+        type: [mongoose_1.Schema.Types.ObjectId], // ✅ Array of ObjectIds
+        default: [],
+        index: true, // For faster queries
     },
     depth: {
         type: Number,
         default: 0,
     },
-    image: { type: String, default: null },
-    is_active: { type: Boolean, default: true },
+    image: {
+        type: String,
+        default: null,
+    },
+    is_active: {
+        type: Boolean,
+        default: true,
+    },
     createdBy: {
         type: mongoose_1.Schema.Types.ObjectId,
         ref: "User",
         required: true,
     },
 }, { timestamps: true });
+// Better indexes for array path
 CategorySchema.index({ company_id: 1, parent_id: 1 });
 CategorySchema.index({ company_id: 1, slug: 1 }, { unique: true });
-CategorySchema.index({ company_id: 1, path: 1 });
+CategorySchema.index({ company_id: 1, path: 1 }); // Works with array
 CategorySchema.index({ company_id: 1, depth: 1 });
 const Category = (0, mongoose_1.model)("Category", CategorySchema);
 exports.default = Category;

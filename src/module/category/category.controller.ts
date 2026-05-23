@@ -1,77 +1,111 @@
-// src/module/category/category.controller.ts
+// category.controller.ts
 import { Request, Response } from "express";
-import { asyncHandler }      from "../../utils/asyncHandler";
-import { ApiResponse }       from "../../utils/ApiResponse";
-import * as CategoryService  from "./category.service";
+import { asyncHandler } from "../../utils/asyncHandler";
+import { ApiResponse } from "../../utils/ApiResponse";
+import * as CategoryService from "./category.service";
 
-// ─── Create ───────────────────────────────────────────────
-export const createCategory = asyncHandler(async (req: Request, res: Response) => {
-  const category = await CategoryService.createCategory({
-    ...req.body,
-    company_id: req.user.company_id!,
-    createdBy : req.user._id,
-    req
-  });
-  return ApiResponse.created(res, category, "Category created successfully");
-});
+// ─── Create Category ──────────────────────────────────────
+export const createCategory = asyncHandler(
+  async (req: Request, res: Response) => {
+    const category = await CategoryService.createCategory({
+      ...req.body, // Contains name, parent_id, image (URL)
+      company_id: req.user.company_id!,
+      createdBy: req.user._id,
+      req,
+    });
+    return ApiResponse.created(res, category, "Category created successfully");
+  },
+);
 
-// ─── Get all ──────────────────────────────────────────────
-export const getCategories = asyncHandler(async (req: Request, res: Response) => {
-  const query = req.validatedQuery as {
-    page      : number;
-    limit     : number;
-    search   ?: string;
-    parent_id?: string | null;
-    depth    ?: number;
-    is_active?: boolean;
-  };
+// ─── Get Category Tree ────────────────────────────────────
+export const getCategoryTree = asyncHandler(
+  async (req: Request, res: Response) => {
+    const search = req.query.search as string | undefined;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
 
-  const { categories, total } = await CategoryService.getCategories({
-    company_id: req.user.company_id!,
-    ...query,
-  });
+    const { categories, total } = await CategoryService.searchCategories({
+      company_id: req.user.company_id!,
+      ...(search && { search }),
+      skip,
+      limit,
+    });
 
-  return ApiResponse.paginated(res,"Category", categories, total, query.page, query.limit);
-});
+    return ApiResponse.paginated(
+      res,
+      "successfully",
+      categories,
+      total,
+      page,
+      limit,
+    );
+  },
+);
 
-// ─── Get tree ─────────────────────────────────────────────
-export const getCategoryTree = asyncHandler(async (req: Request, res: Response) => {
-  const result = await CategoryService.getCategoryTree({
-    company_id: req.user.company_id!,
-    id        : req.params.id as string,
-  });
+// ─── Get All Categories ───────────────────────────────────
+export const getCategories = asyncHandler(
+  async (req: Request, res: Response) => {
+    const page = req.validatedQuery.page as number;
+    const limit = req.validatedQuery.limit as number;
+    const search = req.validatedQuery.search as string;
+    const parent_id = req.validatedQuery.parent_id as string;
+    const depth = req.validatedQuery.depth as number;
+    const is_active = req.validatedQuery.is_active as boolean;
 
-  return ApiResponse.success(res, result);
-});
+    const query = { page, limit, search, parent_id, depth, is_active };
+    const { categories, total } = await CategoryService.getCategories({
+      company_id: req.user.company_id!,
+      page,
+      parent_id,
+      depth,
+      limit,
+      search,
+      is_active,
+    });
+    return ApiResponse.paginated(
+      res,
+      "Category",
+      categories,
+      total,
+      query.page,
+      query.limit,
+    );
+  },
+);
 
-// ─── Get one ──────────────────────────────────────────────
-export const getCategoryById = asyncHandler(async (req: Request, res: Response) => {
-  const category = await CategoryService.getCategoryById({
-    id        : req.params.id as string,
-    company_id: req.user.company_id!,
-  });
+// ─── Get Single Category ──────────────────────────────────
+export const getCategoryById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const category = await CategoryService.getCategoryById({
+      id: req.params.id as string,
+      company_id: req.user.company_id!,
+    });
+    return ApiResponse.success(res, category);
+  },
+);
 
-  return ApiResponse.success(res, category);
-});
+// ─── Update Category ──────────────────────────────────────
+export const updateCategory = asyncHandler(
+  async (req: Request, res: Response) => {
+    const category = await CategoryService.updateCategory({
+      id: req.params.id as string,
+      company_id: req.user.company_id!,
+      data: req.body, // Contains name, image (URL), is_active
+      req,
+    });
+    return ApiResponse.success(res, category, "Category updated successfully");
+  },
+);
 
-// ─── Update ───────────────────────────────────────────────
-export const updateCategory = asyncHandler(async (req: Request, res: Response) => {
-
-  const category = await CategoryService.updateCategory({
-    id        : req.params.id as string,
-    company_id: req.user.company_id!,
-    data      : req.body,
-    req
-  });
-  return ApiResponse.success(res, category, "Category updated successfully");
-});
-
-// ─── Delete ───────────────────────────────────────────────
-export const deleteCategory = asyncHandler(async (req: Request, res: Response) => {
-  const category = await CategoryService.deleteCategory({
-    id        : req.params.id as string,
-    company_id: req.user.company_id!,
-    req
-  });
-  return ApiResponse.success(res, null, "Category deactivated successfully");
-});
+// ─── Delete Category ──────────────────────────────────────
+export const deleteCategory = asyncHandler(
+  async (req: Request, res: Response) => {
+    const category = await CategoryService.deleteCategory({
+      id: req.params.id as string,
+      company_id: req.user.company_id!,
+      req,
+    });
+    return ApiResponse.success(res, null, "Category deactivated successfully");
+  },
+);

@@ -2,8 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = require("mongoose");
 const orderItemSchema = new mongoose_1.Schema({
-    product_id: { type: mongoose_1.Schema.Types.ObjectId, ref: "Product", required: true },
-    variant_id: {
+    product: { type: mongoose_1.Schema.Types.ObjectId, ref: "Product", required: true },
+    variant: {
         type: mongoose_1.Schema.Types.ObjectId,
         ref: "ProductVariant",
         required: true,
@@ -25,7 +25,7 @@ const shippingAddressSchema = new mongoose_1.Schema({
 const orderSchema = new mongoose_1.Schema({
     company_id: { type: mongoose_1.Schema.Types.ObjectId, ref: "Company", required: true },
     order_number: { type: String, required: true },
-    customer_id: {
+    customer: {
         type: mongoose_1.Schema.Types.ObjectId,
         ref: "Customer",
         required: true,
@@ -48,7 +48,7 @@ const orderSchema = new mongoose_1.Schema({
         type: String,
         enum: [
             "cash",
-            "cash_on_deliver",
+            "cash_on_delivery",
             "card",
             "mobile_banking",
             "credit",

@@ -16,7 +16,7 @@ export declare const categoryQuerySchema: z.ZodObject<{
     page: z.ZodPipe<z.ZodOptional<z.ZodString>, z.ZodTransform<number, string | undefined>>;
     limit: z.ZodPipe<z.ZodOptional<z.ZodString>, z.ZodTransform<number, string | undefined>>;
     search: z.ZodOptional<z.ZodString>;
-    parent_id: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    parent_id: z.ZodPipe<z.ZodOptional<z.ZodString>, z.ZodTransform<string | null | undefined, string | undefined>>;
     depth: z.ZodPipe<z.ZodOptional<z.ZodString>, z.ZodTransform<number | undefined, string | undefined>>;
     is_active: z.ZodPipe<z.ZodOptional<z.ZodEnum<{
         true: "true";

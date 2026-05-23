@@ -47,5 +47,9 @@ router.post("/generateOrderNumber", async (req, res) => {
     const result = await (0, healper_1.generateOderNumber)(companyId);
     res.json({ num: result });
 });
+router.post("/generateInvoiceNumber", async (req, res) => {
+    const result = await (0, healper_1.generateInvoiceNumber)();
+    res.json({ num: result });
+});
 exports.DevRouter = router;
 //# sourceMappingURL=fixIndexes.js.map
