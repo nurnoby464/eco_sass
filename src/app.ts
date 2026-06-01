@@ -22,6 +22,7 @@ import { SaleRouter } from "./CRM/sales/sales.route";
 import { CustomerRouter } from "./CRM/customer/customer.route";
 import { DevRouter } from "./dev/fixIndexes";
 import { OrderRouter } from "./CRM/order/order.route";
+import { InvoiceRouter } from "./CRM/invoice/invoice.route";
 
 // routes
 // import authRoutes from './modules/auth/auth.routes';
@@ -97,6 +98,7 @@ app.use("/api/v1/sales", SaleRouter);
 app.use("/api/v1/customer", CustomerRouter);
 app.use('/api/v1/dev', DevRouter);
 app.use('/api/v1/order', OrderRouter);
+app.use('/api/v1/invoices', InvoiceRouter);
 // app.use('/api/v1/public',   publicRoutes);
 
 // Health check

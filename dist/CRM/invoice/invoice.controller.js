@@ -33,12 +33,14 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createSale = void 0;
+exports.getByOrderId = void 0;
+const mongoose_1 = require("mongoose");
 const ApiResponse_1 = require("../../utils/ApiResponse");
 const asyncHandler_1 = require("../../utils/asyncHandler");
-const CustomerServices = __importStar(require("./invoice.service"));
-exports.createSale = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const result = await CustomerServices.createSale();
-    return ApiResponse_1.ApiResponse.created(res, result, "sales created successfully");
+const InvoiceServices = __importStar(require("./invoice.service"));
+exports.getByOrderId = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const { orderId } = req.params;
+    const result = await InvoiceServices.getByOrderId(new mongoose_1.Types.ObjectId(orderId));
+    return ApiResponse_1.ApiResponse.success(res, result);
 });
 //# sourceMappingURL=invoice.controller.js.map

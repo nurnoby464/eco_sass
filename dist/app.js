@@ -22,6 +22,7 @@ const sales_route_1 = require("./CRM/sales/sales.route");
 const customer_route_1 = require("./CRM/customer/customer.route");
 const fixIndexes_1 = require("./dev/fixIndexes");
 const order_route_1 = require("./CRM/order/order.route");
+const invoice_route_1 = require("./CRM/invoice/invoice.route");
 // routes
 // import authRoutes from './modules/auth/auth.routes';
 // import adminRoutes from './modules/admin/admin.routes';
@@ -88,6 +89,7 @@ app.use("/api/v1/sales", sales_route_1.SaleRouter);
 app.use("/api/v1/customer", customer_route_1.CustomerRouter);
 app.use('/api/v1/dev', fixIndexes_1.DevRouter);
 app.use('/api/v1/order', order_route_1.OrderRouter);
+app.use('/api/v1/invoices', invoice_route_1.InvoiceRouter);
 // app.use('/api/v1/public',   publicRoutes);
 // Health check
 app.get("/", (req, res) => {

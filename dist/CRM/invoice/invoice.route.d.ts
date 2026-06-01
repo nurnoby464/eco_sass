@@ -1,2 +1,2 @@
-export declare const CustomerRouter: import("express-serve-static-core").Router;
+export declare const InvoiceRouter: import("express-serve-static-core").Router;
 //# sourceMappingURL=invoice.route.d.ts.map
