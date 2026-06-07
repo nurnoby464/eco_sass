@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllOrder = exports.createOrder = void 0;
+exports.getMyOrderById = exports.getMyOrders = exports.getAllOrder = exports.createOrder = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const appError_1 = require("../../middlewares/appError");
 const product_schema_1 = __importDefault(require("../../module/product/product.schema"));
@@ -46,11 +46,53 @@ const healper_1 = require("../../utils/healper");
 const order_schema_1 = __importDefault(require("./order.schema"));
 const useSkip_1 = require("../../utils/useSkip");
 const invoice_schema_1 = __importDefault(require("../invoice/invoice.schema"));
-const resolveCustomer = async (companyId, name, phone, email, session) => {
+const super_admin_schema_1 = __importDefault(require("../../module/super_admin/super_admin.schema"));
+const resolveCustomer = async (companyId, name, phone, email, shipping_address, session, userId) => {
+    //check shipping address is same as customer address
+    const isSamePerson = shipping_address?.phone === phone && shipping_address.name === name;
+    const newAddress = isSamePerson
+        ? {
+            label: "home",
+            district: shipping_address.city,
+            area: shipping_address.address,
+            zip: shipping_address.zip,
+            isDefault: true,
+        }
+        : null;
+    // console.log(userId)
     // check is exist customer
-    const existing = await customer_schema_1.default.findOne({ companyId, phone }).session(session);
+    const existing = await customer_schema_1.default.findOne({
+        companyId,
+        $or: [...(userId ? [{ userId }] : []), { phone }],
+    }).session(session);
     if (existing) {
-        await customer_schema_1.default.updateOne({ _id: existing._id }, { $set: { name, ...(email && { email }) } }, { runValidators: true }).session(session);
+        // check if exist this address
+        const addressExists = newAddress
+            ? existing.addresses.some((addr) => addr.district === newAddress.district &&
+                addr.area === newAddress.area)
+            : false;
+        await customer_schema_1.default.updateOne({ _id: existing._id }, {
+            $set: {
+                name,
+                ...(email && { email }),
+                ...(userId && { userId }),
+            },
+            // only push if address is new
+            ...(!addressExists &&
+                newAddress && {
+                $push: {
+                    addresses: newAddress,
+                },
+            }),
+        }, { runValidators: true, session });
+        if (userId && !existing.userId) {
+            await super_admin_schema_1.default.updateOne({
+                _id: userId,
+                profileId: null,
+            }, {
+                $set: { profileId: existing._id, profileType: "Customer" },
+            }, { session });
+        }
         return existing._id;
     }
     // create new customer
@@ -60,15 +102,26 @@ const resolveCustomer = async (companyId, name, phone, email, session) => {
             name,
             email,
             phone,
+            ...(userId && { userId }),
+            addresses: newAddress ? [newAddress] : [],
         },
     ], { session });
     if (!customer) {
         throw new appError_1.AppError("Failed to create customer");
     }
+    if (userId) {
+        await Promise.all([
+            super_admin_schema_1.default.updateOne({ _id: userId, profileId: null }, { $set: { profileId: customer._id, profileType: "Customer" } }, { session }),
+            super_admin_schema_1.default.updateOne({
+                _id: userId,
+                $or: [{ phone: { $exists: false } }, { phone: null }, { phone: "" }],
+            }, { $set: { phone } }, { session }),
+        ]);
+    }
     return customer._id;
 };
 const createOrder = async ({ companyId, input, }) => {
-    const { name, phone, email, items, shipping_address, discount_amount, tax_amount, shipping_charge, paid_amount, payment_method, note, } = input;
+    const { name, phone, userId, email, items, shipping_address, discount_amount, tax_amount, shipping_charge, paid_amount, payment_method, note, } = input;
     const session = await mongoose_1.default.startSession();
     try {
         await session.startTransaction();
@@ -121,6 +174,7 @@ const createOrder = async ({ companyId, input, }) => {
                 quantity: item.quantity,
                 sku: variant.sku,
                 name: product.name,
+                image: variant.image,
                 variant: variant._id,
                 product: product._id,
                 discountType: variant.discountType ?? null,
@@ -154,7 +208,7 @@ const createOrder = async ({ companyId, input, }) => {
                         : "partial";
         }
         // 5. resolve customer
-        const customerId = await resolveCustomer(companyId, name, phone, email, session);
+        const customerId = await resolveCustomer(companyId, name, phone, email, shipping_address, session, userId ? new mongoose_1.Types.ObjectId(userId) : undefined);
         // 6. update customer info
         await customer_schema_1.default.updateOne({ _id: customerId }, [
             {
@@ -305,4 +359,115 @@ const getAllOrder = async (companyId, query) => {
     return { orders, total, orderStatusCounts };
 };
 exports.getAllOrder = getAllOrder;
+// ─── getMyOrders ─────────────────────────────────────────────────────────────
+// Returns paginated list of orders for the authenticated customer.
+// Each order includes a lightweight item list (no population needed —
+// items are embedded snapshots).
+const getMyOrders = async (customerId, companyId, query) => {
+    const { page = 1, limit = 10, order_status, search } = query;
+    const skip = (page - 1) * limit;
+    // ── Base match ──────────────────────────────────────────────────────────────
+    const match = {
+        company_id: new mongoose_1.Types.ObjectId(companyId),
+        customer: new mongoose_1.Types.ObjectId(customerId),
+    };
+    console.log(match);
+    if (order_status && order_status !== "all") {
+        match.order_status = order_status;
+    }
+    if (search?.trim()) {
+        // order_number is a plain string field — safe to use $regex
+        match.order_number = {
+            $regex: search.trim(),
+            $options: "i",
+        };
+    }
+    // ── Aggregation ─────────────────────────────────────────────────────────────
+    const [result] = await order_schema_1.default.aggregate([
+        { $match: match },
+        {
+            $facet: {
+                orders: [
+                    { $sort: { createdAt: -1 } },
+                    { $skip: skip },
+                    { $limit: limit },
+                    {
+                        $project: {
+                            order_number: 1,
+                            order_status: 1,
+                            payment_status: 1,
+                            payment_method: 1,
+                            items: {
+                                $map: {
+                                    input: "$items",
+                                    as: "item",
+                                    in: {
+                                        name: "$$item.name",
+                                        sku: "$$item.sku",
+                                        quantity: "$$item.quantity",
+                                        unit_price: "$$item.unit_price",
+                                        total_price: "$$item.total_price",
+                                        image: "$$item.image", // ✅ directly from snapshot
+                                    },
+                                },
+                            },
+                            subtotal: 1,
+                            discount_amount: 1,
+                            tax_amount: 1,
+                            shipping_charge: 1,
+                            grand_total: 1,
+                            paid_amount: 1,
+                            due_amount: 1,
+                            shipping_address: 1,
+                            note: 1,
+                            createdAt: 1,
+                            updatedAt: 1,
+                        },
+                    },
+                ],
+                total: [{ $count: "count" }],
+                // Status counts for tab badges on the frontend
+                statusCounts: [
+                    {
+                        $group: {
+                            _id: "$order_status",
+                            count: { $sum: 1 },
+                        },
+                    },
+                ],
+            },
+        },
+    ]);
+    const orders = result?.orders ?? [];
+    const total = result?.total?.[0]?.count ?? 0;
+    // Reshape statusCounts: [{ _id: "pending", count: 2 }] → { pending: 2, ... }
+    const statusCounts = {};
+    for (const s of result?.statusCounts ?? []) {
+        statusCounts[s._id] = s.count;
+    }
+    return {
+        orders,
+        statusCounts,
+        total,
+    };
+};
+exports.getMyOrders = getMyOrders;
+// ─── getMyOrderById ───────────────────────────────────────────────────────────
+// Returns a single order with full detail.
+// Ownership check: order.customer must match the requesting customerId.
+const getMyOrderById = async (orderId, customerId, companyId) => {
+    if (!mongoose_1.Types.ObjectId.isValid(orderId)) {
+        throw new appError_1.AppError("Invalid order ID", 400);
+    }
+    const order = await order_schema_1.default.findOne({
+        _id: new mongoose_1.Types.ObjectId(orderId),
+        company_id: companyId,
+        customer: customerId, // ← ownership guard: other customers can't see this
+    }).lean();
+    if (!order) {
+        throw new appError_1.AppError("Order not found", 404);
+    }
+    return order;
+};
+exports.getMyOrderById = getMyOrderById;
 //# sourceMappingURL=order.service.js.map

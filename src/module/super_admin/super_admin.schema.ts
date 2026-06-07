@@ -7,7 +7,6 @@ const UserSchema = new Schema<IUserDocument>(
   {
     name: {
       type: String,
-      required: [true, "Name is required"],
       trim: true,
       minlength: [2, "Name must be at least 2 characters"],
       maxlength: [100, "Name cannot exceed 100 characters"],
@@ -16,9 +15,9 @@ const UserSchema = new Schema<IUserDocument>(
     email: {
       type: String,
       required: [true, "Email is required"],
-      unique: true,
       lowercase: true,
       trim: true,
+
       match: [/^\S+@\S+\.\S+$/, "Please enter a valid email"],
     },
     phone: {
@@ -26,7 +25,6 @@ const UserSchema = new Schema<IUserDocument>(
       // default: null,
       trim: true,
       sparse: true, // unique but allows multiple nulls
-      unique: true,
     },
 
     password: {
@@ -65,6 +63,17 @@ const UserSchema = new Schema<IUserDocument>(
       type: Boolean,
       default: false,
     },
+    // Add these
+    profileId: {
+      type: Schema.Types.ObjectId,
+      refPath: "profileType",
+      default: null,
+    },
+    profileType: {
+      type: String,
+      enum: ["Staff", "Customer"],
+      default: null,
+    },
 
     createdBy: {
       type: Schema.Types.ObjectId,
@@ -84,6 +93,14 @@ const UserSchema = new Schema<IUserDocument>(
 // ─── Indexes ─────────────────────────────────────────────
 UserSchema.index({ company_id: 1, role: 1 });
 UserSchema.index({ createdBy: 1 });
+UserSchema.index({ company_id: 1, email: 1 }, { unique: true });
+UserSchema.index(
+  { company_id: 1, phone: 1 },
+  {
+    unique: true,
+    sparse: true,
+  },
+);
 
 // ─── Virtual: sessions ────────────────────────────────────
 // Lets you do user.populate("sessions") to get all sessions for this user.

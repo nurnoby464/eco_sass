@@ -12,6 +12,7 @@ import {
 } from "../../middlewares/AuthenticateHelper";
 import { registerCustomerSchema } from "../super_admin/super_admin.validation";
 import { companyIdentifier } from "../../middlewares/companyIdentifier";
+import { UpdateProfileSchema } from "./auth.validation";
 const router = express.Router();
 // public
 router.post("/login", validate({ body: loginSchema }), AuthController.login);
@@ -37,5 +38,12 @@ router.patch(
   validate({ body: updatePasswordSchema }),
   AuthController.updatePassword,
 );
+router.put(
+  "/update-profile",
+  validate({ body: UpdateProfileSchema }),
+  AuthController.updateProfile,
+);
+
+router.get("/me", AuthController.getMe);
 
 export const AuthRoutes = router;

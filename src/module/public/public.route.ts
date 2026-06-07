@@ -6,10 +6,14 @@ import { validate } from "../../middlewares/validate";
 import { productQuerySchema } from "../product/product.validation";
 const router = express.Router();
 // ── /api/public/products ─────────────────────────────────────────
-router.get("/products", validate({query: productQuerySchema}), companyIdentifier, PublicController.getProduct);
-router.get("/category",companyIdentifier, PublicController.getAllCategories);
-router.get("/products/:id", companyIdentifier, PublicController.getProductById);
+router.get(
+  "/product",
+  validate({ query: productQuerySchema }),
+  companyIdentifier,
+  PublicController.getProducts,
+);
+router.get("/category/tree",companyIdentifier, PublicController.getCategoryTree);
+router.get("/category", companyIdentifier, PublicController.getAllCategories);
+router.get("/product/:id", companyIdentifier, PublicController.getProductById);
 router.get("/db-test", PublicController.dbTest);
-
-const PublicRoute = router;
-export default PublicRoute;
+export const PublicRoutes= router ;

@@ -1,11 +1,11 @@
 import mongoose, { Document } from "mongoose";
 
 export type PaymentMethod =
-  | "cash"              // staff POS — paid now
-  | "cash_on_delivery"  // customer online — paid on delivery
-  | "card"              // online gateway
-  | "mobile_banking"    // online gateway (bKash/Nagad)
-  | "credit";           // staff POS — paid later
+  | "cash" // staff POS — paid now
+  | "cash_on_delivery" // customer online — paid on delivery
+  | "card" // online gateway
+  | "mobile_banking" // online gateway (bKash/Nagad)
+  | "credit"; // staff POS — paid later
 export type PaymentStatus = "paid" | "partial" | "due";
 export type SaleStatus = "completed" | "returned" | "cancelled";
 export type DiscountType = "flat" | "percentage" | null;
@@ -17,9 +17,9 @@ export interface ISaleItem {
   // product snapshots
 
   productName: string;
-  color: string;
-  size: string;
+  attributes: [{ key: string; value: string }];
   sku: string;
+  image: string | null;
   quantity: number;
   unitPrice: number;
   sellingPrice: number;
@@ -60,7 +60,7 @@ export interface ISale {
   status: SaleStatus;
 
   createdBy: mongoose.Types.ObjectId | null;
-  createdByType: "staff"| "system";
+  createdByType: "staff" | "system";
   createdAt: Date;
   updatedAt: Date;
 }

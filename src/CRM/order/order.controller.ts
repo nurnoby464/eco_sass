@@ -1,8 +1,9 @@
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/asyncHandler";
 import * as OrderServices from "./order.service";
 import { Request, Response } from "express";
+import { IGetMyOrdersQuery } from "./order.interface";
 
 export const createOrder = asyncHandler(async (req: Request, res: Response) => {
   const companyId = req.company?._id;
@@ -50,7 +51,10 @@ export const getAllOrder = asyncHandler(async (req: Request, res: Response) => {
     paymentStatus,
     customerId,
   };
-  const { orders, total,orderStatusCounts } = await OrderServices.getAllOrder(companyId, query);
+  const { orders, total, orderStatusCounts } = await OrderServices.getAllOrder(
+    companyId,
+    query,
+  );
   return ApiResponse.paginated(
     res,
     "Order fetched successfully",
@@ -58,6 +62,34 @@ export const getAllOrder = asyncHandler(async (req: Request, res: Response) => {
     total,
     page,
     limit,
-    orderStatusCounts
+    orderStatusCounts,
+  );
+});
+
+export const getMyOrders = asyncHandler(async (req: Request, res: Response) => {
+  const customerId = req.user.profileId as Types.ObjectId;
+ 
+  const companyId = req.user.company_id as Types.ObjectId;
+  if (!companyId) {
+    return ApiResponse.error(res, "Company not found", 404);
+  }
+  const { page, limit, order_status, search } = req.validatedQuery as {
+    page: number;
+    limit: number;
+    order_status?: string;
+    search?: string;
+  };
+  const { orders, total, statusCounts } = await OrderServices.getMyOrders(
+    customerId,
+    companyId,
+    req.validatedQuery as unknown as IGetMyOrdersQuery,
+  );
+  return ApiResponse.paginated(
+    res,
+    "My Orders fetched successfully",
+    orders,
+    total,
+    page,
+    limit,
   );
 });

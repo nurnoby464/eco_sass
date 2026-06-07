@@ -8,6 +8,7 @@ export interface IOrderItem {
     variant: Types.ObjectId;
     name: string;
     sku: string;
+    image: string | null;
     quantity: number;
     unit_price: number;
     total_price: number;
@@ -55,4 +56,12 @@ export interface OrderQuery {
     sortBy: string;
     sortOrder: 1 | -1;
 }
+type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+export interface IGetMyOrdersQuery {
+    page: number;
+    limit: number;
+    order_status?: OrderStatus | "all";
+    search?: string;
+}
+export {};
 //# sourceMappingURL=order.interface.d.ts.map

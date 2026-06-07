@@ -27,6 +27,9 @@ export interface IUser {
   last_login: Date | null;
   reset_token: string | null;
   reset_token_exp: Date | null;
+  // Add these
+  profileId: mongoose.Types.ObjectId | null;
+  profileType: "Staff" | "Customer" | null;
   createdAt: Date;
   updatedAt: Date;
 }

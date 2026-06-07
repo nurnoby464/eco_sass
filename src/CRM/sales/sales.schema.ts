@@ -18,8 +18,9 @@ const saleItemSchema = new Schema<ISaleItem>({
     required: true,
   },
   productName: { type: String, required: true },
-  color: { type: String, required: true },
-  size: { type: String, required: true },
+  attributes: [{ key: String, value: String }],
+  sku: { type: String, required: true },
+  image: { type: String, default: null },
   quantity: { type: Number, required: true, min: [1, "Minimum order one"] },
   unitPrice: { type: Number, required: true },
   sellingPrice: { type: Number, required: true },
@@ -31,11 +32,11 @@ const saleItemSchema = new Schema<ISaleItem>({
 
 const customerSnapshotsSchema = new Schema<ICustomerSnapshot>({
   name: { type: String, required: true },
-  phone: { type: String, required: true },
+  phone: { type: String },
   customerId: {
     type: Schema.Types.ObjectId,
     ref: "Customer",
-    required: true,
+    default: null,
   },
 });
 

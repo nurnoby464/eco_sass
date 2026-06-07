@@ -15,7 +15,29 @@ const customerSchema = new mongoose_1.Schema({
     name: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true },
     email: { type: String, default: null, trim: true },
-    address: { type: String, default: null, trim: true },
+    addresses: [
+        {
+            // _id: false,
+            // label: { type: String, default: "home" }, // "home", "office"
+            // division: { type: String },
+            // district: { type: String },
+            // area: { type: String },
+            // zip: { type: String },
+            // isDefault: { type: Boolean, default: false },
+            label: { type: String, required: true }, // "home", "office"
+            district: { type: String, required: true },
+            area: { type: String, required: true },
+            zip: { type: String, default: null },
+            isDefault: { type: Boolean, default: false },
+        },
+    ],
+    image: { type: String, default: null },
+    dob: { type: Date, default: null },
+    gender: {
+        type: String,
+        enum: ["male", "female", "other", null],
+        default: null,
+    },
     totalPurchased: { type: Number, default: 0 },
     totalPaid: { type: Number, default: 0 },
     due: { type: Number, default: 0 },

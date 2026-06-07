@@ -8,6 +8,8 @@ export interface ITokenPayload {
   email: string;
   name: string;
   role: UserRole;
+  profileId: mongoose.Types.ObjectId | null;
+  profileType: "Customer" | "Staff" | null;
   company_id: mongoose.Types.ObjectId | null;
   sessionId: string;
   passwordChangedAt: number | null;

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AuthController = exports.registerCustomer = void 0;
+exports.AuthController = exports.updateProfile = exports.registerCustomer = void 0;
 const asyncHandler_1 = require("../../utils/asyncHandler");
 const auth_service_1 = require("./auth.service");
 const ApiResponse_1 = require("../../utils/ApiResponse");
@@ -15,7 +15,7 @@ const COOKIE_OPTIONS = {
     //   | "lax",
     sameSite: isProduction ? "none" : "lax",
     maxAge: 1000 * 60 * 60 * 24 * 30,
-    path: "/"
+    path: "/",
 };
 const login = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { refreshToken, ...result } = await auth_service_1.AuthServices.login(req.body, req);
@@ -43,6 +43,11 @@ const removeSession = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     await auth_service_1.AuthServices.removeSession(sessionId, userId);
     return ApiResponse_1.ApiResponse.success(res, null, "Session removed. You can now log in.");
 });
+const getMe = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const { refreshToken, ...result } = await auth_service_1.AuthServices.getMe(req.user._id.toString(), req.user.sessionId.toString());
+    res.cookie("eMultiRefreshToken", refreshToken, COOKIE_OPTIONS);
+    return ApiResponse_1.ApiResponse.success(res, result, "Load own info");
+});
 const updatePassword = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { oldPassword, newPassword } = req.body;
     const result = await auth_service_1.AuthServices.updatePassword({
@@ -59,6 +64,14 @@ const registerCustomer = async (req, res) => {
     return ApiResponse_1.ApiResponse.created(res, user, "Registration Successfully");
 };
 exports.registerCustomer = registerCustomer;
+const updateProfile = async (req, res) => {
+    const company_id = req.user.company_id;
+    if (!company_id)
+        throw new appError_1.AppError("Company ID not found in user data", 400);
+    const user = await auth_service_1.AuthServices.updateProfile(company_id, req.user._id, req.body);
+    return ApiResponse_1.ApiResponse.created(res, user, "Profile update Successfully");
+};
+exports.updateProfile = updateProfile;
 exports.AuthController = {
     login,
     logout,
@@ -66,5 +79,7 @@ exports.AuthController = {
     removeSession,
     updatePassword,
     registerCustomer: exports.registerCustomer,
+    getMe,
+    updateProfile: exports.updateProfile,
 };
 //# sourceMappingURL=auth.controller.js.map

@@ -11,6 +11,8 @@ declare global {
         name: string;
         role: UserRole;
         company_id: mongoose.Types.ObjectId | null;
+        profileId: mongoose.Types.ObjectId | null;
+        profileType: "Customer" | "Staff" | null;
         sessionId: string;
         passwordChangedAt: number | null;
         iat?: number; 

@@ -1,6 +1,7 @@
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { Request } from "express";
 import { RegisterCustomerInput } from "../super_admin/super_admin.validation";
+import { IUpdateProfileRequest } from "./auth.validation";
 interface ILogin {
     email: string;
     password: string;
@@ -11,12 +12,103 @@ interface IUpdatePassword {
     userId: string;
     sessionId: string;
 }
+export declare const getMe: (userId: string, sessionId: string) => Promise<{
+    user: {
+        company_id: null;
+        profileId: null;
+        profileType: null;
+        _id: Types.ObjectId;
+        role: "report" | "sales" | "inventory" | "site_management" | "account" | "admin" | "super_admin" | "customer";
+        is_active: boolean;
+        email_verified: boolean;
+        name: any;
+        email: any;
+        phone: any;
+        image: any;
+    } | {
+        profileType: string;
+        is_profile_complete: boolean;
+        dob: any;
+        gender: any;
+        addresses: any;
+        _id: Types.ObjectId;
+        role: "report" | "sales" | "inventory" | "site_management" | "account" | "admin" | "super_admin" | "customer";
+        company_id: Types.ObjectId | null;
+        is_active: boolean;
+        email_verified: boolean;
+        profileId: any;
+        name: any;
+        email: any;
+        phone: any;
+        image: any;
+    } | {
+        profileType: string;
+        is_profile_complete: boolean;
+        designation: any;
+        department: any;
+        joining_date: any;
+        address: any;
+        _id: Types.ObjectId;
+        role: "report" | "sales" | "inventory" | "site_management" | "account" | "admin" | "super_admin" | "customer";
+        company_id: Types.ObjectId | null;
+        is_active: boolean;
+        email_verified: boolean;
+        profileId: any;
+        name: any;
+        email: any;
+        phone: any;
+        image: any;
+    };
+    accessToken: string;
+    refreshToken: string;
+}>;
 export declare const AuthServices: {
     login: (payload: ILogin, req: Request) => Promise<{
-        user: import("../super_admin/super_admin.interface").IUserDocument & Required<{
+        user: {
+            company_id: null;
+            profileId: null;
+            profileType: null;
             _id: Types.ObjectId;
-        }> & {
-            __v: number;
+            role: "report" | "sales" | "inventory" | "site_management" | "account" | "admin" | "super_admin" | "customer";
+            is_active: boolean;
+            email_verified: boolean;
+            name: any;
+            email: any;
+            phone: any;
+            image: any;
+        } | {
+            profileType: string;
+            is_profile_complete: boolean;
+            dob: any;
+            gender: any;
+            addresses: any;
+            _id: Types.ObjectId;
+            role: "report" | "sales" | "inventory" | "site_management" | "account" | "admin" | "super_admin" | "customer";
+            company_id: Types.ObjectId | null;
+            is_active: boolean;
+            email_verified: boolean;
+            profileId: any;
+            name: any;
+            email: any;
+            phone: any;
+            image: any;
+        } | {
+            profileType: string;
+            is_profile_complete: boolean;
+            designation: any;
+            department: any;
+            joining_date: any;
+            address: any;
+            _id: Types.ObjectId;
+            role: "report" | "sales" | "inventory" | "site_management" | "account" | "admin" | "super_admin" | "customer";
+            company_id: Types.ObjectId | null;
+            is_active: boolean;
+            email_verified: boolean;
+            profileId: any;
+            name: any;
+            email: any;
+            phone: any;
+            image: any;
         };
         accessToken: string;
         refreshToken: string;
@@ -37,13 +129,15 @@ export declare const AuthServices: {
         phone: string | null;
         passwordChangedAt?: Date | null;
         role: import("../super_admin/super_admin.interface").UserRole;
-        company_id: Types.ObjectId | null;
+        company_id: mongoose.Types.ObjectId | null;
         is_active: boolean;
         email_verified: boolean;
-        createdBy: Types.ObjectId | null;
+        createdBy: mongoose.Types.ObjectId | null;
         last_login: Date | null;
         reset_token: string | null;
         reset_token_exp: Date | null;
+        profileId: mongoose.Types.ObjectId | null;
+        profileType: "Staff" | "Customer" | null;
         createdAt: Date;
         updatedAt: Date;
         _id: Types.ObjectId;
@@ -51,13 +145,64 @@ export declare const AuthServices: {
         $op: "save" | "validate" | "remove" | null;
         $where: Record<string, unknown>;
         baseModelName?: string;
-        collection: import("mongoose").Collection;
-        db: import("mongoose").Connection;
-        errors?: import("mongoose").Error.ValidationError;
+        collection: mongoose.Collection;
+        db: mongoose.Connection;
+        errors?: mongoose.Error.ValidationError;
         isNew: boolean;
-        schema: import("mongoose").Schema;
+        schema: mongoose.Schema;
         __v: number;
     }>;
+    getMe: (userId: string, sessionId: string) => Promise<{
+        user: {
+            company_id: null;
+            profileId: null;
+            profileType: null;
+            _id: Types.ObjectId;
+            role: "report" | "sales" | "inventory" | "site_management" | "account" | "admin" | "super_admin" | "customer";
+            is_active: boolean;
+            email_verified: boolean;
+            name: any;
+            email: any;
+            phone: any;
+            image: any;
+        } | {
+            profileType: string;
+            is_profile_complete: boolean;
+            dob: any;
+            gender: any;
+            addresses: any;
+            _id: Types.ObjectId;
+            role: "report" | "sales" | "inventory" | "site_management" | "account" | "admin" | "super_admin" | "customer";
+            company_id: Types.ObjectId | null;
+            is_active: boolean;
+            email_verified: boolean;
+            profileId: any;
+            name: any;
+            email: any;
+            phone: any;
+            image: any;
+        } | {
+            profileType: string;
+            is_profile_complete: boolean;
+            designation: any;
+            department: any;
+            joining_date: any;
+            address: any;
+            _id: Types.ObjectId;
+            role: "report" | "sales" | "inventory" | "site_management" | "account" | "admin" | "super_admin" | "customer";
+            company_id: Types.ObjectId | null;
+            is_active: boolean;
+            email_verified: boolean;
+            profileId: any;
+            name: any;
+            email: any;
+            phone: any;
+            image: any;
+        };
+        accessToken: string;
+        refreshToken: string;
+    }>;
+    updateProfile: (companyId: Types.ObjectId, userId: Types.ObjectId, input: IUpdateProfileRequest) => Promise<void>;
 };
 export {};
 //# sourceMappingURL=auth.service.d.ts.map

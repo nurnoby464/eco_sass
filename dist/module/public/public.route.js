@@ -36,6 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.PublicRoutes = void 0;
 const express_1 = __importDefault(require("express"));
 const PublicController = __importStar(require("./public.controller"));
 const companyIdentifier_1 = require("../../middlewares/companyIdentifier");
@@ -43,10 +44,10 @@ const validate_1 = require("../../middlewares/validate");
 const product_validation_1 = require("../product/product.validation");
 const router = express_1.default.Router();
 // ── /api/public/products ─────────────────────────────────────────
-router.get("/products", (0, validate_1.validate)({ query: product_validation_1.productQuerySchema }), companyIdentifier_1.companyIdentifier, PublicController.getProduct);
+router.get("/product", (0, validate_1.validate)({ query: product_validation_1.productQuerySchema }), companyIdentifier_1.companyIdentifier, PublicController.getProducts);
+router.get("/category/tree", companyIdentifier_1.companyIdentifier, PublicController.getCategoryTree);
 router.get("/category", companyIdentifier_1.companyIdentifier, PublicController.getAllCategories);
-router.get("/products/:id", companyIdentifier_1.companyIdentifier, PublicController.getProductById);
+router.get("/product/:id", companyIdentifier_1.companyIdentifier, PublicController.getProductById);
 router.get("/db-test", PublicController.dbTest);
-const PublicRoute = router;
-exports.default = PublicRoute;
+exports.PublicRoutes = router;
 //# sourceMappingURL=public.route.js.map

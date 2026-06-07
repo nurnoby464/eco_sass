@@ -17,12 +17,12 @@ const category_route_1 = require("./module/category/category.route");
 const product_route_1 = require("./module/product/product.route");
 const purchase_route_1 = require("./module/purchase/purchase.route");
 const product_variant_route_1 = require("./module/product-variant/product-variant.route");
-const public_route_1 = __importDefault(require("./module/public/public.route"));
 const sales_route_1 = require("./CRM/sales/sales.route");
 const customer_route_1 = require("./CRM/customer/customer.route");
 const fixIndexes_1 = require("./dev/fixIndexes");
 const order_route_1 = require("./CRM/order/order.route");
 const invoice_route_1 = require("./CRM/invoice/invoice.route");
+const public_route_1 = require("./module/public/public.route");
 // routes
 // import authRoutes from './modules/auth/auth.routes';
 // import adminRoutes from './modules/admin/admin.routes';
@@ -75,7 +75,7 @@ app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 app.use((0, cookie_parser_1.default)());
 // public route
-app.use("/api/v1/public", public_route_1.default);
+app.use("/api/v1/public", public_route_1.PublicRoutes);
 // Routes
 app.use("/api/v1/auth", auth_route_1.AuthRoutes);
 app.use("/api/v1/super-admin", super_admin_route_1.SuperAdminRoute);
@@ -90,7 +90,6 @@ app.use("/api/v1/customer", customer_route_1.CustomerRouter);
 app.use('/api/v1/dev', fixIndexes_1.DevRouter);
 app.use('/api/v1/order', order_route_1.OrderRouter);
 app.use('/api/v1/invoices', invoice_route_1.InvoiceRouter);
-// app.use('/api/v1/public',   publicRoutes);
 // Health check
 app.get("/", (req, res) => {
     res.json({ success: true, message: "Welcome to Multi vendor SAAS" });

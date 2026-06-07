@@ -37,6 +37,8 @@ export const saleAnAuthenticateAndUnauthenticated: express.RequestHandler =
         _id: decoded._id,
         company_id: decoded.company_id,
         sessionId: decoded.sessionId,
+        profileId:decoded.profileId,
+        profileType:decoded.profileType,
         name: decoded.name,
         email: decoded.email,
         role: decoded.role,

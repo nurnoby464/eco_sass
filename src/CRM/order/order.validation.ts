@@ -21,6 +21,11 @@ const shippingAddressSchema = z.object({
 
 export const createOrderBody = z.object({
   // customer identification
+  userId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, "Invalid user ID format")
+    .optional()
+    .nullable(),
   phone: z.string().trim().min(1, "Customer phone is required"),
   name: z.string().trim().min(1, "Customer name is required"),
   email: z.string().trim().email("Invalid email").nullable().default(null),
@@ -113,9 +118,43 @@ export const getOrderByIdParam = z.object({
   id: z.string().trim().min(1, "Order ID is required"),
 });
 
+const ORDER_STATUSES = [
+  "all",
+  "pending",
+  "processing",
+  "shipped",
+  "delivered",
+  "cancelled",
+] as const;
+
+export const getMyOrdersQuerySchema = z.object({
+  page: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 1))
+    .pipe(z.number().int().min(1)),
+
+  limit: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 10))
+    .pipe(z.number().int().min(1).max(50)),
+
+  order_status: z.enum(ORDER_STATUSES).optional(),
+
+  search: z.string().trim().max(100).optional(),
+});
+
+// ─── getMyOrderById param validation ─────────────────────────────────────────
+
+export const getMyOrderByIdParamSchema = z.object({
+  orderId: z.string().min(1, "Order ID is required"),
+});
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type TCreateOrderInput = z.infer<typeof createOrderBody>;
 export type TUpdateOrderStatusInput = z.infer<typeof updateOrderStatusBody>;
 export type TUpdatePaymentInput = z.infer<typeof updatePaymentBody>;
 export type TGetOrderListQuery = z.infer<typeof getOrderListQuery>;
+export type TShippingAddress = z.infer<typeof shippingAddressSchema>;

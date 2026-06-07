@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getOrderByIdParam = exports.getOrderListQuery = exports.updatePaymentBody = exports.updatePaymentParam = exports.updateOrderStatusBody = exports.updateOrderStatusParam = exports.createOrderBody = void 0;
+exports.getMyOrderByIdParamSchema = exports.getMyOrdersQuerySchema = exports.getOrderByIdParam = exports.getOrderListQuery = exports.updatePaymentBody = exports.updatePaymentParam = exports.updateOrderStatusBody = exports.updateOrderStatusParam = exports.createOrderBody = void 0;
 // src/module/order/order.validation.ts
 const zod_1 = require("zod");
 // ─── Sub-schemas ──────────────────────────────────────────────────────────────
@@ -19,6 +19,11 @@ const shippingAddressSchema = zod_1.z.object({
 // ─── Create Order ─────────────────────────────────────────────────────────────
 exports.createOrderBody = zod_1.z.object({
     // customer identification
+    userId: zod_1.z
+        .string()
+        .regex(/^[0-9a-fA-F]{24}$/, "Invalid user ID format")
+        .optional()
+        .nullable(),
     phone: zod_1.z.string().trim().min(1, "Customer phone is required"),
     name: zod_1.z.string().trim().min(1, "Customer name is required"),
     email: zod_1.z.string().trim().email("Invalid email").nullable().default(null),
@@ -92,5 +97,31 @@ exports.getOrderListQuery = zod_1.z.object({
 // ─── Get Order By ID ──────────────────────────────────────────────────────────
 exports.getOrderByIdParam = zod_1.z.object({
     id: zod_1.z.string().trim().min(1, "Order ID is required"),
+});
+const ORDER_STATUSES = [
+    "all",
+    "pending",
+    "processing",
+    "shipped",
+    "delivered",
+    "cancelled",
+];
+exports.getMyOrdersQuerySchema = zod_1.z.object({
+    page: zod_1.z
+        .string()
+        .optional()
+        .transform((v) => (v ? parseInt(v, 10) : 1))
+        .pipe(zod_1.z.number().int().min(1)),
+    limit: zod_1.z
+        .string()
+        .optional()
+        .transform((v) => (v ? parseInt(v, 10) : 10))
+        .pipe(zod_1.z.number().int().min(1).max(50)),
+    order_status: zod_1.z.enum(ORDER_STATUSES).optional(),
+    search: zod_1.z.string().trim().max(100).optional(),
+});
+// ─── getMyOrderById param validation ─────────────────────────────────────────
+exports.getMyOrderByIdParamSchema = zod_1.z.object({
+    orderId: zod_1.z.string().min(1, "Order ID is required"),
 });
 //# sourceMappingURL=order.validation.js.map

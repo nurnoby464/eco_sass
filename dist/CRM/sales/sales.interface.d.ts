@@ -7,9 +7,12 @@ export interface ISaleItem {
     productId: mongoose.Types.ObjectId;
     variantId: mongoose.Types.ObjectId;
     productName: string;
-    color: string;
-    size: string;
+    attributes: [{
+        key: string;
+        value: string;
+    }];
     sku: string;
+    image: string | null;
     quantity: number;
     unitPrice: number;
     sellingPrice: number;

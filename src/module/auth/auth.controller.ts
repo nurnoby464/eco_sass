@@ -15,7 +15,7 @@ const COOKIE_OPTIONS = {
   //   | "lax",
   sameSite: isProduction ? ("none" as "none") : ("lax" as "lax"),
   maxAge: 1000 * 60 * 60 * 24 * 30,
-  path:"/"
+  path: "/",
 };
 
 const login = asyncHandler(async (req: Request, res: Response) => {
@@ -50,6 +50,12 @@ const removeSession = asyncHandler(async (req: Request, res: Response) => {
   return ApiResponse.success(res, null, "Session removed. You can now log in.");
 });
 
+const getMe = asyncHandler(async (req: Request, res: Response) => {
+  const  { refreshToken, ...result } = await AuthServices.getMe(req.user._id.toString(),req.user.sessionId.toString());
+  res.cookie("eMultiRefreshToken", refreshToken, COOKIE_OPTIONS);
+  return ApiResponse.success(res, result,"Load own info");
+});
+
 const updatePassword = asyncHandler(async (req: Request, res: Response) => {
   const { oldPassword, newPassword } = req.body;
   const result = await AuthServices.updatePassword({
@@ -67,6 +73,13 @@ export const registerCustomer = async (req: Request, res: Response) => {
   return ApiResponse.created(res, user, "Registration Successfully");
 };
 
+export const updateProfile = async (req: Request, res: Response) => {
+  const company_id = req.user.company_id;
+  if (!company_id) throw new AppError("Company ID not found in user data", 400);
+  const user = await AuthServices.updateProfile(company_id,req.user._id, req.body);
+  return ApiResponse.created(res, user, "Profile update Successfully");
+};
+
 export const AuthController = {
   login,
   logout,
@@ -74,4 +87,6 @@ export const AuthController = {
   removeSession,
   updatePassword,
   registerCustomer,
+  getMe,
+  updateProfile,
 };

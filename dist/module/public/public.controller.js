@@ -33,15 +33,22 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllCategories = exports.getProductById = exports.dbTest = exports.getProduct = void 0;
+exports.getCategoryTree = exports.getAllCategories = exports.getProductById = exports.dbTest = exports.getProducts = void 0;
 const PublicService = __importStar(require("./public.service"));
 const ApiResponse_1 = require("../../utils/ApiResponse");
-const getProduct = async (req, res) => {
+const asyncHandler_1 = require("../../utils/asyncHandler");
+exports.getProducts = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const query = req.validatedQuery;
-    const { products, total, page, limit } = await PublicService.getProduct(req, query);
-    return ApiResponse_1.ApiResponse.paginated(res, "Products retrieved successfully", products, total, page, limit);
-};
-exports.getProduct = getProduct;
+    const company_id = req.company?._id;
+    if (!company_id) {
+        return ApiResponse_1.ApiResponse.error(res, "Company identifier missing", 400);
+    }
+    const { products, total } = await PublicService.getProducts({
+        company_id,
+        ...query,
+    });
+    return ApiResponse_1.ApiResponse.paginated(res, "Product", products, total, query.page, query.limit);
+});
 const dbTest = async (req, res) => {
     const query = req.validatedQuery;
     const { products, total, page, limit } = await PublicService.dbTest(req, query);
@@ -50,7 +57,14 @@ const dbTest = async (req, res) => {
 exports.dbTest = dbTest;
 const getProductById = async (req, res) => {
     const id = req.params.id;
-    const products = await PublicService.getProductById({ id }, req);
+    const company_id = req.company?._id;
+    if (!company_id) {
+        return ApiResponse_1.ApiResponse.error(res, "Company identifier missing", 400);
+    }
+    const products = await PublicService.getProductById({
+        id: req.params.id,
+        company_id,
+    });
     return ApiResponse_1.ApiResponse.success(res, products, "Single product retrieved successfully");
 };
 exports.getProductById = getProductById;
@@ -59,4 +73,21 @@ const getAllCategories = async (req, res) => {
     return ApiResponse_1.ApiResponse.success(res, categories, "Categories retrieved successfully");
 };
 exports.getAllCategories = getAllCategories;
+exports.getCategoryTree = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const search = req.query.search;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    const company_id = req.company?._id;
+    if (!company_id) {
+        return ApiResponse_1.ApiResponse.error(res, "Company identifier missing", 400);
+    }
+    const { categories, total } = await PublicService.searchCategories({
+        company_id,
+        ...(search && { search }),
+        skip,
+        limit,
+    });
+    return ApiResponse_1.ApiResponse.paginated(res, "successfully", categories, total, page, limit);
+});
 //# sourceMappingURL=public.controller.js.map

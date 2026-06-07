@@ -7,7 +7,26 @@ export interface ICustomer {
   name: string;
   phone: string;
   email: string | null;
-  address: string | null;
+  image: string | null;
+  dob: Date | null;
+  gender: "male" | "female" | "other" | null;
+
+  addresses: [
+    {
+      // _id: boolean;
+      // label: string;
+      // division: string;
+      // district: string;
+      // area: string;
+      // zip: string;
+      // isDefault: boolean;
+      label: string;
+      district: string;
+      area: string;
+      zip: string | null;
+      isDefault: boolean;
+    },
+  ];
 
   totalPurchased: number;
   totalPaid: number;

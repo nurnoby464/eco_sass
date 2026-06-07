@@ -1,16 +1,26 @@
 import { Request } from "express";
 import { GetProductQuery } from "../product/product.validation";
-import { GetProductParamsQuery } from "./public.validation";
-import { Types } from "mongoose";
-export declare const getProduct: (req: Request, query: GetProductQuery) => Promise<{
+import mongoose, { Types } from "mongoose";
+import { ICategoryDocument } from "../category/category.interface";
+export declare const getProducts: (payload: {
+    company_id: mongoose.Types.ObjectId;
+    page: number;
+    limit: number;
+    search?: string;
+    category_id?: string;
+    vendor_id?: string;
+    has_variants?: boolean;
+    is_active?: boolean;
+    low_stock?: string;
+    sort_by: string;
+    sort_order: string;
+}) => Promise<{
     products: (import("../product/product.interface").IProduct & {
         _id: Types.ObjectId;
     } & {
         __v: number;
     })[];
     total: number;
-    page: number;
-    limit: number;
 }>;
 export declare const dbTest: (req: Request, query: GetProductQuery) => Promise<{
     products: (import("../product/product.interface").IProduct & {
@@ -22,21 +32,47 @@ export declare const dbTest: (req: Request, query: GetProductQuery) => Promise<{
     page: number;
     limit: number;
 }>;
-export declare const getProductById: (payload: GetProductParamsQuery, req: Request) => Promise<{
-    products: (import("../product/product.interface").IProduct & {
+export declare const getProductById: (payload: {
+    id: string;
+    company_id: mongoose.Types.ObjectId;
+}) => Promise<{
+    product: import("../product/product.interface").IProduct & {
         _id: Types.ObjectId;
     } & {
         __v: number;
-    }) | null;
-    variant: (import("../product-variant/product-variant.interface").IProductVariantDocument & Required<{
-        _id: Types.ObjectId;
-    }> & {
-        __v: number;
-    })[] | null;
+    };
+    variants: any[];
 }>;
-export declare const getAllCategories: (req: Request) => Promise<(import("../category/category.interface").ICategoryDocument & Required<{
+export declare const getAllCategories: (req: Request) => Promise<(ICategoryDocument & Required<{
     _id: Types.ObjectId;
 }> & {
     __v: number;
 })[]>;
+type AncestorItem = {
+    _id: mongoose.Types.ObjectId;
+    name: string;
+    depth: number;
+};
+type CategorySearchItem = {
+    _id: mongoose.Types.ObjectId;
+    name: string;
+    slug: string;
+    fullPath: string;
+    parentId: mongoose.Types.ObjectId | null;
+    parentName: string | null;
+    ancestors: AncestorItem[];
+    depth: number;
+    hasChildren: boolean;
+    image: string | null;
+};
+export declare const searchCategories: (payload: {
+    company_id: mongoose.Types.ObjectId;
+    search?: string;
+    skip: number;
+    limit: number;
+}) => Promise<{
+    categories: CategorySearchItem[];
+    total: number;
+}>;
+export {};
 //# sourceMappingURL=public.service.d.ts.map

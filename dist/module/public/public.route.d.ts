@@ -1,3 +1,2 @@
-declare const PublicRoute: import("express-serve-static-core").Router;
-export default PublicRoute;
+export declare const PublicRoutes: import("express-serve-static-core").Router;
 //# sourceMappingURL=public.route.d.ts.map

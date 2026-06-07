@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllOrder = exports.createOrder = void 0;
+exports.getMyOrders = exports.getAllOrder = exports.createOrder = void 0;
 const ApiResponse_1 = require("../../utils/ApiResponse");
 const asyncHandler_1 = require("../../utils/asyncHandler");
 const OrderServices = __importStar(require("./order.service"));
@@ -73,5 +73,15 @@ exports.getAllOrder = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     };
     const { orders, total, orderStatusCounts } = await OrderServices.getAllOrder(companyId, query);
     return ApiResponse_1.ApiResponse.paginated(res, "Order fetched successfully", orders, total, page, limit, orderStatusCounts);
+});
+exports.getMyOrders = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const customerId = req.user.profileId;
+    const companyId = req.user.company_id;
+    if (!companyId) {
+        return ApiResponse_1.ApiResponse.error(res, "Company not found", 404);
+    }
+    const { page, limit, order_status, search } = req.validatedQuery;
+    const { orders, total, statusCounts } = await OrderServices.getMyOrders(customerId, companyId, req.validatedQuery);
+    return ApiResponse_1.ApiResponse.paginated(res, "My Orders fetched successfully", orders, total, page, limit);
 });
 //# sourceMappingURL=order.controller.js.map

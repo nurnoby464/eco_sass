@@ -11,6 +11,7 @@ const auth_schema_1 = require("./auth.schema");
 const AuthenticateHelper_1 = require("../../middlewares/AuthenticateHelper");
 const super_admin_validation_1 = require("../super_admin/super_admin.validation");
 const companyIdentifier_1 = require("../../middlewares/companyIdentifier");
+const auth_validation_1 = require("./auth.validation");
 const router = express_1.default.Router();
 // public
 router.post("/login", (0, validate_1.validate)({ body: auth_schema_1.loginSchema }), auth_controller_1.AuthController.login);
@@ -22,5 +23,7 @@ router.post("/logout", auth_controller_1.AuthController.logout);
 router.use(AuthenticateHelper_1.authenticate);
 router.use(AuthenticateHelper_1.verifySession);
 router.patch("/update-password", (0, validate_1.validate)({ body: auth_schema_1.updatePasswordSchema }), auth_controller_1.AuthController.updatePassword);
+router.put("/update-profile", (0, validate_1.validate)({ body: auth_validation_1.UpdateProfileSchema }), auth_controller_1.AuthController.updateProfile);
+router.get("/me", auth_controller_1.AuthController.getMe);
 exports.AuthRoutes = router;
 //# sourceMappingURL=auth.route.js.map

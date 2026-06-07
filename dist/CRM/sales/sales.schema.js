@@ -13,8 +13,9 @@ const saleItemSchema = new mongoose_1.Schema({
         required: true,
     },
     productName: { type: String, required: true },
-    color: { type: String, required: true },
-    size: { type: String, required: true },
+    attributes: [{ key: String, value: String }],
+    sku: { type: String, required: true },
+    image: { type: String, default: null },
     quantity: { type: Number, required: true, min: [1, "Minimum order one"] },
     unitPrice: { type: Number, required: true },
     sellingPrice: { type: Number, required: true },
@@ -25,11 +26,11 @@ const saleItemSchema = new mongoose_1.Schema({
 });
 const customerSnapshotsSchema = new mongoose_1.Schema({
     name: { type: String, required: true },
-    phone: { type: String, required: true },
+    phone: { type: String },
     customerId: {
         type: mongoose_1.Schema.Types.ObjectId,
         ref: "Customer",
-        required: true,
+        default: null,
     },
 });
 const saleSchema = new mongoose_1.Schema({

@@ -16,6 +16,7 @@ export interface IOrderItem {
   variant: Types.ObjectId;
   name: string; // snapshot — product name at order time
   sku: string; // snapshot
+  image:string | null;
   quantity: number;
   unit_price: number;
   total_price: number; // quantity * unit_price
@@ -72,4 +73,19 @@ export interface OrderQuery {
   orderStatus?: TOrderStatus;
   sortBy: string;
   sortOrder: 1 | -1;
+}
+type OrderStatus =
+  | "pending"
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "cancelled";
+
+
+
+export interface IGetMyOrdersQuery {
+  page: number;
+  limit: number;
+  order_status?: OrderStatus | "all";
+  search?: string; // order_number search
 }

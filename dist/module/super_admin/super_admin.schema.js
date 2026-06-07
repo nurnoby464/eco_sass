@@ -10,7 +10,6 @@ const auth_schema_1 = __importDefault(require("../auth/auth.schema"));
 const UserSchema = new mongoose_1.Schema({
     name: {
         type: String,
-        required: [true, "Name is required"],
         trim: true,
         minlength: [2, "Name must be at least 2 characters"],
         maxlength: [100, "Name cannot exceed 100 characters"],
@@ -18,7 +17,6 @@ const UserSchema = new mongoose_1.Schema({
     email: {
         type: String,
         required: [true, "Email is required"],
-        unique: true,
         lowercase: true,
         trim: true,
         match: [/^\S+@\S+\.\S+$/, "Please enter a valid email"],
@@ -28,7 +26,6 @@ const UserSchema = new mongoose_1.Schema({
         // default: null,
         trim: true,
         sparse: true, // unique but allows multiple nulls
-        unique: true,
     },
     password: {
         type: String,
@@ -63,6 +60,17 @@ const UserSchema = new mongoose_1.Schema({
         type: Boolean,
         default: false,
     },
+    // Add these
+    profileId: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        refPath: "profileType",
+        default: null,
+    },
+    profileType: {
+        type: String,
+        enum: ["Staff", "Customer"],
+        default: null,
+    },
     createdBy: {
         type: mongoose_1.Schema.Types.ObjectId,
         ref: "User",
@@ -77,6 +85,11 @@ const UserSchema = new mongoose_1.Schema({
 // ─── Indexes ─────────────────────────────────────────────
 UserSchema.index({ company_id: 1, role: 1 });
 UserSchema.index({ createdBy: 1 });
+UserSchema.index({ company_id: 1, email: 1 }, { unique: true });
+UserSchema.index({ company_id: 1, phone: 1 }, {
+    unique: true,
+    sparse: true,
+});
 // ─── Virtual: sessions ────────────────────────────────────
 // Lets you do user.populate("sessions") to get all sessions for this user.
 // No data is stored on the User document itself.

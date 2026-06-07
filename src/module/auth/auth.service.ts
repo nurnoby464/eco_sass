@@ -2,7 +2,7 @@ import {
   ISessionPublic,
   SessionLimitError,
 } from "./../../middlewares/appError";
-import { ObjectId, Types } from "mongoose";
+import mongoose, { ObjectId, Types } from "mongoose";
 import { jwtConfig } from "./../../config/jwt.config";
 import { Request } from "express";
 import { AppError } from "../../middlewares/appError";
@@ -12,6 +12,10 @@ import { Secret } from "jsonwebtoken";
 import Session from "./auth.schema";
 import { enforceSessionLimit } from "../../utils/sessionHelper";
 import { RegisterCustomerInput } from "../super_admin/super_admin.validation";
+import { makeLoginResponse, makeToken } from "../../utils/helper";
+import { IUpdateProfileRequest } from "./auth.validation";
+import Staff from "../../CRM/staff/staff.schema";
+import Customer from "../../CRM/customer/customer.schema";
 
 interface ILogin {
   email: string;
@@ -34,7 +38,7 @@ const login = async (payload: ILogin, req: Request) => {
   }
   const isMatch = await existing.comparePassword(password);
   if (!isMatch) {
-    throw new AppError("Password incorrect!",400);
+    throw new AppError("Password incorrect!", 400);
   }
   //check session limit
   const activeSessions = await Session.find({
@@ -76,22 +80,24 @@ const login = async (payload: ILogin, req: Request) => {
     },
     {
       upsert: true,
-      returnDocument:"after",
+      returnDocument: "after",
       runValidators: true,
     },
   );
   if (!session) {
     throw new AppError("Session created failed");
   }
-  const data: ITokenPayload = {
-    _id: existing._id,
-    email: existing.email,
-    name: existing.name,
-    role: existing.role,
-    company_id: existing.company_id ?? null,
-    sessionId: session._id.toString(),
-    passwordChangedAt: existing.passwordChangedAt?.getTime() ?? null
-  };
+  // const dataa: ITokenPayload = {
+  //   _id: existing._id,
+  //   // email: existing.email,
+  //   // name: existing.name,
+  //   role: existing.role,
+  //   company_id: existing.company_id ?? null,
+  //   sessionId: session._id.toString(),
+  //   passwordChangedAt: existing.passwordChangedAt?.getTime() ?? null
+  // };
+
+  const data = makeToken({ existing, session });
   const accessToken = await JwtHelper.generateToken({
     data,
     secret: jwtConfig.access.secret as Secret,
@@ -105,14 +111,15 @@ const login = async (payload: ILogin, req: Request) => {
   const result = await User.findByIdAndUpdate(
     existing._id,
     { last_login: new Date() },
-    { returnDocument:"after", runValidators: true },
+    { returnDocument: "after", runValidators: true },
   );
   if (!result) {
     throw new AppError("Last login not updated");
   }
   const user = result.toJSON();
+  const response = await makeLoginResponse({ user });
   return {
-    user,
+    user: response,
     accessToken,
     refreshToken,
   };
@@ -147,7 +154,6 @@ const refresh = async (refreshToken: string) => {
   }
   // 2. find session
   const session = await Session.findById(decoded.sessionId);
-  console.log(session)
   if (!session || !session.valid) {
     throw new AppError("Session expired. Please log in again", 401);
   }
@@ -159,16 +165,9 @@ const refresh = async (refreshToken: string) => {
   }
 
   // 4. issue new access token
+  const data = makeToken({ existing: user, session });
   const newAccessToken = JwtHelper.generateToken({
-    data: {
-      _id: user._id,
-      sessionId: session._id.toString(),
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      company_id: user.company_id ?? null,
-      passwordChangedAt: user.passwordChangedAt?.getTime() ?? null
-    },
+    data,
     secret: jwtConfig.access.secret,
     expiresIn: jwtConfig.access.expiresIn,
   });
@@ -192,7 +191,7 @@ const updatePassword = async (payload: IUpdatePassword) => {
   if (!user) throw new AppError("User not found", 404);
   // check old password
   const isMatch = await user.comparePassword(oldPassword);
-  if (!isMatch) throw new AppError("Old password is incorrect", 400);
+  if (!isMatch) throw new AppError("Current password is incorrect", 400);
   // check new password is same as old password
   const isSame = await user.comparePassword(newPassword);
   if (isSame) {
@@ -214,9 +213,9 @@ const updatePassword = async (payload: IUpdatePassword) => {
   };
 };
 
- const registerCustomer = async (
+const registerCustomer = async (
   company_id: Types.ObjectId,
-  input: RegisterCustomerInput
+  input: RegisterCustomerInput,
 ) => {
   const { name, phone, email, password } = input;
 
@@ -226,7 +225,6 @@ const updatePassword = async (payload: IUpdatePassword) => {
     email,
     role: "customer",
   });
-
   if (existing) {
     throw new AppError("This email already registered", 409);
   }
@@ -238,6 +236,7 @@ const updatePassword = async (payload: IUpdatePassword) => {
     email,
     password,
     role: "customer",
+    profileType: "Customer",
     is_active: true,
   });
 
@@ -247,11 +246,114 @@ const updatePassword = async (payload: IUpdatePassword) => {
   return safeUser;
 };
 
+export const getMe = async (userId: string, sessionId: string) => {
+  const user = await User.findById(userId).lean();
+  if (!user) throw new AppError("User not found", 404);
+  const session = await Session.findById(sessionId).lean();
+  if (!session) {
+    throw new AppError("session not found", 401);
+  }
+  const data = makeToken({ existing: user, session });
+   
+  const accessToken = await JwtHelper.generateToken({
+    data,
+    secret: jwtConfig.access.secret as Secret,
+    expiresIn: jwtConfig.access.expiresIn,
+  });
+  const refreshToken = await JwtHelper.generateToken({
+    data,
+    secret: jwtConfig.refresh.secret,
+    expiresIn: jwtConfig.refresh.expiresIn,
+  });
+
+  // reuse same helper
+  const response = await makeLoginResponse({ user });
+  return {
+    user: response,
+    accessToken,
+    refreshToken,
+  };
+};
+
+const updateProfile = async (
+  companyId: Types.ObjectId,
+  userId: Types.ObjectId,
+  input: IUpdateProfileRequest,
+) => {
+  const { role, profileType, profileData, userData } = input;
+
+  const session = await mongoose.startSession();
+  try {
+    await session.startTransaction();
+    if (role === "customer") {
+      const customer = await Customer.updateOne(
+        { companyId, userId },
+        {
+          $set: { ...profileData, ...userData },
+        },
+        { session, runValidators: true },
+      );
+      if (customer.matchedCount === 0) {
+        throw new AppError("Profile not found", 404);
+      }
+    } else {
+      const staff = await Staff.updateOne(
+        { companyId, userId },
+        {
+          $set: { ...profileData, ...userData },
+        },
+        { session, runValidators: true },
+      );
+      if (staff.matchedCount === 0) {
+        throw new AppError("Profile not found", 404);
+      }
+    }
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: { name: userData?.name, phone: userData?.phone } },
+      { session, returnDocument: "after", runValidators: true },
+    );
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    await session.commitTransaction();
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    await session.endSession();
+  }
+
+  // const result = await profileModel.updateOne(
+  //   { companyId, userId },
+  //   {
+  //     $set: { ...profileData, ...userData },
+  //   },
+  // );
+  // const user = await User.findByIdAndUpdate(userId, {
+  //   $set: {
+  //     name: userData?.name,
+  //     phone: userData?.phone,
+  //   },
+  // });
+  // console.log(
+  //   "Updating profile for role:",
+  //   role,
+  //   "profileType:",
+  //   profileType,
+  //   profileModel,
+  // );
+  // console.log("Profile data:", profileData, userData);
+};
+
 export const AuthServices = {
   login,
   logout,
   refresh,
   removeSession,
   updatePassword,
-  registerCustomer
+  registerCustomer,
+  getMe,
+  updateProfile,
 };
