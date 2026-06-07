@@ -234,7 +234,6 @@ async function bulkUpsertCategories(
 async function bulkUpsertProducts(
   items: CreatePurchaseInput["items"],
   categoryMap: Map<string, mongoose.Types.ObjectId>,
-  // vendor_id: mongoose.Types.ObjectId,
   company_id: mongoose.Types.ObjectId,
   createdBy: mongoose.Types.ObjectId,
   session: ClientSession,
@@ -315,15 +314,17 @@ async function bulkUpsertProducts(
           return {
             company_id,
             category_id,
-            // vendor_id,
             name: i.product_name!.trim(),
             slug: buildSlug(i.product_name!) + "-" + Date.now(),
             sku,
-            buying_price: i.unit_price,
-            selling_price: i.selling_price,
+            // ✅ For variant products, these are placeholders (will be updated from variants)
+            buying_price: 0,  // Will be updated from variant aggregation
+            selling_price: 0, // Will be updated from variant aggregation
+            profit: 0,
+            profit_margin: 0,
             has_variants: true,
-            stock: 0,
-            images: i.images ?? [], // ← ADD THIS
+            stock: 0,  // Will be updated from variant aggregation
+            images: i.images ?? [],
             is_active: true,
             createdBy,
           };
@@ -348,7 +349,7 @@ async function bulkUpsertVariants(
   company_id: mongoose.Types.ObjectId,
   session: ClientSession,
 ): Promise<Map<string, { _id: mongoose.Types.ObjectId; sku: string }>> {
-  // ── helper: resolve product from map by id or name ────────
+  
   const resolveProduct = (item: CreatePurchaseInput["items"][number]) => {
     const product = item.productId
       ? productMap.get(item.productId)
@@ -371,6 +372,7 @@ async function bulkUpsertVariants(
   const existing = await ProductVariant.find({
     company_id,
     product_id: { $in: productIds },
+    is_active: true,
   })
     .session(session)
     .lean<any[]>();
@@ -389,7 +391,7 @@ async function bulkUpsertVariants(
   );
 
   const toCreate: typeof items = [];
-  const toUpdate: Array<{
+  const toUpdateStock: Array<{
     variantId: mongoose.Types.ObjectId;
     quantity: number;
     buying_price: number;
@@ -414,7 +416,7 @@ async function bulkUpsertVariants(
       });
 
       if (variant) {
-        toUpdate.push({
+        toUpdateStock.push({
           variantId: variant._id,
           quantity: item.quantity,
           buying_price: item.unit_price,
@@ -426,20 +428,26 @@ async function bulkUpsertVariants(
     }
   }
 
-  // ── parallel update existing variants ─────────────────────
-  if (toUpdate.length > 0) {
+  // ── Update existing variants (increment stock, update prices) ──
+  if (toUpdateStock.length > 0) {
     await Promise.all(
-      toUpdate.map(({ variantId, quantity, buying_price, selling_price }) =>
+      toUpdateStock.map(({ variantId, quantity, buying_price, selling_price }) =>
         ProductVariant.findByIdAndUpdate(
           variantId,
-          { $inc: { stock: quantity }, $set: { buying_price, selling_price } },
+          {
+            $inc: { stock: quantity },
+            $set: {
+              buying_price: buying_price,
+              selling_price: selling_price,
+            },
+          },
           { session },
         ),
       ),
     );
   }
 
-  // ── insertMany new variants ───────────────────────────────
+  // ── Create new variants ───────────────────────────────────
   if (toCreate.length > 0) {
     const created = await ProductVariant.insertMany(
       toCreate.map((item) => {
@@ -456,7 +464,6 @@ async function bulkUpsertVariants(
           sku,
           attributes: [
             { key: "color", value: item.color.trim() },
-            // ✅ only add size attribute if size has a value
             ...(item.size?.trim()
               ? [{ key: "size", value: item.size.trim() }]
               : []),
@@ -481,54 +488,81 @@ async function bulkUpsertVariants(
       map.set(key, { _id: v._id, sku: v.sku });
     });
   }
-  // ── Sync product stock from variants ─────────────────────
-  // runs after toCreate insertMany and toUpdate Promise.all
+
+  // ── Sync product aggregated data from variants ────────────
   const affectedProductIds = [
     ...new Set(items.map((i) => resolveProduct(i)._id.toString())),
   ].map((id) => new mongoose.Types.ObjectId(id));
 
-  await Promise.all(
-    affectedProductIds.map(async (productId) => {
-      const agg = await ProductVariant.aggregate([
+ // ── Sync product aggregated data from variants ────────────
+await Promise.all(
+  affectedProductIds.map(async (productId) => {
+    const agg = await ProductVariant.aggregate([
+      {
+        $match: {
+          product_id: productId,
+          company_id,
+          is_active: true,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalStock: { $sum: "$stock" },
+          minPrice: { $min: "$selling_price" },
+          maxPrice: { $max: "$selling_price" },
+          variantCount: { $sum: 1 },
+          hasDiscount: {
+            $sum: {
+              $cond: [
+                { $or: [
+                  { $gt: ["$discountValue", 0] },
+                  { $ne: ["$discountType", null] }
+                ]},
+                1,
+                0
+              ]
+            }
+          }
+        },
+      },
+    ]).session(session);
+
+    if (agg.length > 0) {
+      const {
+        totalStock,
+        minPrice,
+        maxPrice,
+        variantCount,
+        hasDiscount,
+      } = agg[0];
+
+      // Update product - ONLY stock and display fields
+      await Product.findByIdAndUpdate(
+        productId,
         {
-          $match: {
-            product_id: productId,
-            company_id,
-            is_active: true,
+          $set: {
+            // For variant products, these should be 0
+            stock: totalStock,
+            buying_price: 0,      // ✅ Not used, set to 0
+            selling_price: 0,     // ✅ Not used, set to 0
+            profit: 0,
+            profit_margin: 0,
+            
+            // Display-only derived fields
+            display_price_min: minPrice,
+            display_price_max: maxPrice,
+            total_stock: totalStock,
+            variant_count: variantCount,
+            has_discount: hasDiscount > 0,
           },
         },
-        {
-          $group: {
-            _id: null,
-            totalStock: { $sum: "$stock" },
-            avgBuyingPrice: { $avg: "$buying_price" },
-            avgSellingPrice: { $avg: "$selling_price" },
-          },
-        },
-      ],{session});
+        { session },
+      );
+    }
+  }),
+);
 
-      if (agg.length > 0) {
-        const { totalStock, avgBuyingPrice, avgSellingPrice } = agg[0];
-        const profit = round2(avgSellingPrice - avgBuyingPrice);
-        const profit_margin =
-          avgSellingPrice > 0 ? round2((profit / avgSellingPrice) * 100) : 0;
-
-        await Product.findByIdAndUpdate(
-          productId,
-          {
-            $set: {
-              stock: totalStock,
-              buying_price: round2(avgBuyingPrice),
-              selling_price: round2(avgSellingPrice),
-              profit,
-              profit_margin,
-            },
-          },
-          { session },
-        );
-      }
-    }),
-  );
   return map;
 }
 

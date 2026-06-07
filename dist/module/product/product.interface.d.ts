@@ -14,6 +14,11 @@ export interface IProduct {
     profit_margin: number;
     stock: number;
     low_stock_alert: number;
+    display_price_min: number;
+    display_price_max: number;
+    total_stock: number;
+    variant_count: number;
+    has_discount: boolean;
     has_variants: boolean;
     taxRate: number;
     is_active: boolean;

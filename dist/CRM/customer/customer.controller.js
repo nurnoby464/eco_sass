@@ -34,16 +34,18 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCustomerList = void 0;
+const mongoose_1 = require("mongoose");
 const ApiResponse_1 = require("../../utils/ApiResponse");
 const asyncHandler_1 = require("../../utils/asyncHandler");
 const CustomerServices = __importStar(require("./customer.service"));
 const appError_1 = require("../../middlewares/appError");
 exports.getCustomerList = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const companyId = req.company?._id;
+    const companyId = new mongoose_1.Types.ObjectId(req.user.company_id);
+    console.log(companyId);
     if (!companyId) {
         throw new appError_1.AppError("Company not found", 404);
     }
-    const result = await CustomerServices.getCustomerList(req.validatedQuery, companyId);
-    return ApiResponse_1.ApiResponse.created(res, result, "sales created successfully");
+    const { customers, total, page, limit } = await CustomerServices.getCustomerList(req.validatedQuery, companyId);
+    return ApiResponse_1.ApiResponse.paginated(res, "sales created successfully", customers, total, page, limit);
 });
 //# sourceMappingURL=customer.controller.js.map

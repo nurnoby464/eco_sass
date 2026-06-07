@@ -20,6 +20,12 @@ export interface IProduct {
   stock: number; // current stock (0 if has_variants)
   low_stock_alert: number; // alert when stock <= this
 
+  display_price_min: number;
+  display_price_max: number;
+  total_stock: number;
+  variant_count: number;
+  has_discount: boolean;
+
   has_variants: boolean; // true → use ProductVariant
   taxRate: number;
   is_active: boolean;

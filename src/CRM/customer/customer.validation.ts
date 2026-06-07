@@ -46,7 +46,7 @@ export const customerQuerySchema = z.object({
     .optional()
     .transform((v) => (v === undefined ? undefined : v === "true")),
   sort_by: z
-    .enum(["name", "createdAt", "stock", "selling_price"])
+    .enum(["name", "createdAt", "stock", "selling_price","lastPurchasedAt"])
     .optional()
     .default("createdAt"),
   sort_order: z

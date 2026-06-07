@@ -20,7 +20,7 @@ const getCustomerList = async (query, companyId) => {
             .lean(),
         customer_schema_1.default.countDocuments(filter),
     ]);
-    return { customers, total };
+    return { customers, total, page, limit };
 };
 exports.getCustomerList = getCustomerList;
 //# sourceMappingURL=customer.service.js.map

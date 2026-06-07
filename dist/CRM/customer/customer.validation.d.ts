@@ -34,6 +34,7 @@ export declare const customerQuerySchema: z.ZodObject<{
     sort_by: z.ZodDefault<z.ZodOptional<z.ZodEnum<{
         name: "name";
         createdAt: "createdAt";
+        lastPurchasedAt: "lastPurchasedAt";
         selling_price: "selling_price";
         stock: "stock";
     }>>>;

@@ -55,6 +55,11 @@ const ProductSchema = new mongoose_1.Schema({
     has_variants: { type: Boolean, default: false },
     is_active: { type: Boolean, default: true },
     taxRate: { type: Number, default: 0 },
+    display_price_min: { type: Number, default: 0 },
+    display_price_max: { type: Number, default: 0 },
+    total_stock: { type: Number, default: 0 },
+    variant_count: { type: Number, default: 0 },
+    has_discount: { type: Boolean, default: false },
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
 }, { timestamps: true });
 // ── Auto-generate SKU if not provided ────────────────────────────────────────

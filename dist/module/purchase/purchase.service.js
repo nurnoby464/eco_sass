@@ -149,9 +149,7 @@ async function bulkUpsertCategories(items, company_id, createdBy, session) {
     return map;
 }
 // ─── Stage 2: Bulk upsert products ───────────────────────────────────────────
-async function bulkUpsertProducts(items, categoryMap, 
-// vendor_id: mongoose.Types.ObjectId,
-company_id, createdBy, session) {
+async function bulkUpsertProducts(items, categoryMap, company_id, createdBy, session) {
     const map = new Map();
     const withId = items.filter((i) => i.productId);
     const withName = items.filter((i) => !i.productId && i.product_name);
@@ -205,15 +203,17 @@ company_id, createdBy, session) {
                 return {
                     company_id,
                     category_id,
-                    // vendor_id,
                     name: i.product_name.trim(),
                     slug: buildSlug(i.product_name) + "-" + Date.now(),
                     sku,
-                    buying_price: i.unit_price,
-                    selling_price: i.selling_price,
+                    // ✅ For variant products, these are placeholders (will be updated from variants)
+                    buying_price: 0, // Will be updated from variant aggregation
+                    selling_price: 0, // Will be updated from variant aggregation
+                    profit: 0,
+                    profit_margin: 0,
                     has_variants: true,
-                    stock: 0,
-                    images: i.images ?? [], // ← ADD THIS
+                    stock: 0, // Will be updated from variant aggregation
+                    images: i.images ?? [],
                     is_active: true,
                     createdBy,
                 };
@@ -225,7 +225,6 @@ company_id, createdBy, session) {
 }
 // ─── Stage 3: Bulk upsert variants ───────────────────────────────────────────
 async function bulkUpsertVariants(items, productMap, company_id, session) {
-    // ── helper: resolve product from map by id or name ────────
     const resolveProduct = (item) => {
         const product = item.productId
             ? productMap.get(item.productId)
@@ -242,6 +241,7 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
     const existing = await product_variant_schema_1.default.find({
         company_id,
         product_id: { $in: productIds },
+        is_active: true,
     })
         .session(session)
         .lean();
@@ -254,7 +254,7 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
         ];
     }));
     const toCreate = [];
-    const toUpdate = [];
+    const toUpdateStock = [];
     // ── classify each item → create or update ─────────────────
     for (const item of items) {
         const product = resolveProduct(item);
@@ -266,7 +266,7 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
                 return variantKey(v.product_id.toString(), c, s) === key;
             });
             if (variant) {
-                toUpdate.push({
+                toUpdateStock.push({
                     variantId: variant._id,
                     quantity: item.quantity,
                     buying_price: item.unit_price,
@@ -278,11 +278,17 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
             toCreate.push(item);
         }
     }
-    // ── parallel update existing variants ─────────────────────
-    if (toUpdate.length > 0) {
-        await Promise.all(toUpdate.map(({ variantId, quantity, buying_price, selling_price }) => product_variant_schema_1.default.findByIdAndUpdate(variantId, { $inc: { stock: quantity }, $set: { buying_price, selling_price } }, { session })));
+    // ── Update existing variants (increment stock, update prices) ──
+    if (toUpdateStock.length > 0) {
+        await Promise.all(toUpdateStock.map(({ variantId, quantity, buying_price, selling_price }) => product_variant_schema_1.default.findByIdAndUpdate(variantId, {
+            $inc: { stock: quantity },
+            $set: {
+                buying_price: buying_price,
+                selling_price: selling_price,
+            },
+        }, { session })));
     }
-    // ── insertMany new variants ───────────────────────────────
+    // ── Create new variants ───────────────────────────────────
     if (toCreate.length > 0) {
         const created = await product_variant_schema_1.default.insertMany(toCreate.map((item) => {
             const product = resolveProduct(item);
@@ -293,7 +299,6 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
                 sku,
                 attributes: [
                     { key: "color", value: item.color.trim() },
-                    // ✅ only add size attribute if size has a value
                     ...(item.size?.trim()
                         ? [{ key: "size", value: item.size.trim() }]
                         : []),
@@ -313,11 +318,11 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
             map.set(key, { _id: v._id, sku: v.sku });
         });
     }
-    // ── Sync product stock from variants ─────────────────────
-    // runs after toCreate insertMany and toUpdate Promise.all
+    // ── Sync product aggregated data from variants ────────────
     const affectedProductIds = [
         ...new Set(items.map((i) => resolveProduct(i)._id.toString())),
     ].map((id) => new mongoose_1.default.Types.ObjectId(id));
+    // ── Sync product aggregated data from variants ────────────
     await Promise.all(affectedProductIds.map(async (productId) => {
         const agg = await product_variant_schema_1.default.aggregate([
             {
@@ -331,22 +336,41 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
                 $group: {
                     _id: null,
                     totalStock: { $sum: "$stock" },
-                    avgBuyingPrice: { $avg: "$buying_price" },
-                    avgSellingPrice: { $avg: "$selling_price" },
+                    minPrice: { $min: "$selling_price" },
+                    maxPrice: { $max: "$selling_price" },
+                    variantCount: { $sum: 1 },
+                    hasDiscount: {
+                        $sum: {
+                            $cond: [
+                                { $or: [
+                                        { $gt: ["$discountValue", 0] },
+                                        { $ne: ["$discountType", null] }
+                                    ] },
+                                1,
+                                0
+                            ]
+                        }
+                    }
                 },
             },
-        ], { session });
+        ]).session(session);
         if (agg.length > 0) {
-            const { totalStock, avgBuyingPrice, avgSellingPrice } = agg[0];
-            const profit = round2(avgSellingPrice - avgBuyingPrice);
-            const profit_margin = avgSellingPrice > 0 ? round2((profit / avgSellingPrice) * 100) : 0;
+            const { totalStock, minPrice, maxPrice, variantCount, hasDiscount, } = agg[0];
+            // Update product - ONLY stock and display fields
             await product_schema_1.default.findByIdAndUpdate(productId, {
                 $set: {
+                    // For variant products, these should be 0
                     stock: totalStock,
-                    buying_price: round2(avgBuyingPrice),
-                    selling_price: round2(avgSellingPrice),
-                    profit,
-                    profit_margin,
+                    buying_price: 0, // ✅ Not used, set to 0
+                    selling_price: 0, // ✅ Not used, set to 0
+                    profit: 0,
+                    profit_margin: 0,
+                    // Display-only derived fields
+                    display_price_min: minPrice,
+                    display_price_max: maxPrice,
+                    total_stock: totalStock,
+                    variant_count: variantCount,
+                    has_discount: hasDiscount > 0,
                 },
             }, { session });
         }

@@ -7,5 +7,7 @@ export declare const getCustomerList: (query: GetCustomerQuery, companyId: Types
         __v: number;
     })[];
     total: number;
+    page: number;
+    limit: number;
 }>;
 //# sourceMappingURL=customer.service.d.ts.map

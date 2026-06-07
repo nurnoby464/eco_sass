@@ -25,5 +25,5 @@ export const getCustomerList = async (
       .lean(),
     Customer.countDocuments(filter),
   ]);
-  return { customers, total };
+  return { customers, total ,page,limit};
 };
