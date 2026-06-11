@@ -12,11 +12,14 @@ const saleItemSchema = z.object({
 const offlinePayments = ["cash", "cash_on_delivery", "credit"] as const;
 
 export const createSaleSchema = z.object({
+
     // customer
-    customerName: z.string().min(2, "Customer name is required"),
+    customerId:z.string().optional(),
+    customerEmail:z.string().optional(),
+    customerName: z.string().optional(),
     customerPhone: z
-      .string()
-      .regex(/^01[3-9]\d{8}$/, "Invalid phone number"),
+      .string().optional(),
+      // .regex(/^01[3-9]\d{8}$/, "Invalid phone number"),
 
     items: z.array(saleItemSchema).min(1, "At least one item is required"),
 
@@ -30,7 +33,7 @@ export const createSaleSchema = z.object({
 
     paidAmount: z.number().min(0).default(0),
     note: z.string().optional().nullable(),
-    createdByType:z.enum(["staff", "system"])
+    discount:z.string()
 });
 
 export type CreateSaleInput = z.infer<typeof createSaleSchema>;

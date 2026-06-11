@@ -24,17 +24,14 @@ type CalculatedItem = {
   subtotal: number;
 };
 
-
-
 interface ICreateSalePayload {
   companyId: mongoose.Types.ObjectId;
   createdBy: mongoose.Types.ObjectId | null;
   input: CreateSaleInput;
+  createdByType: "staff" | "system";
 }
 
 // ─── Helpers ──────────────────────────────────────────────
-
-
 
 const getAttribute = (
   attributes: { key: string; value: string }[],
@@ -43,16 +40,25 @@ const getAttribute = (
 
 const resolveCustomer = async (
   companyId: Types.ObjectId,
-  customerName: string,
-  customerPhone: string,
   netAmount: number,
   effectivePaid: number,
   session: mongoose.ClientSession,
-): Promise<Types.ObjectId> => {
-  const existing = await Customer.findOne({
-    companyId,
-    phone: customerPhone,
-  }).session(session);
+  customerName?: string,
+  customerPhone?: string,
+  customerId?: string,
+): Promise<Types.ObjectId | null> => {
+  let existing = null;
+
+  if (customerId || customerPhone) {
+    existing = await Customer.findOne({
+      companyId,
+      $or: [
+        ...(companyId ? [{ _id: new Types.ObjectId(companyId) }] : []),
+        ...(customerPhone ? [{ phone: customerPhone }] : []),
+      ],
+    }).session(session);
+  }
+
   if (existing) {
     await Customer.updateOne({ _id: existing._id }, [
       {
@@ -92,6 +98,9 @@ const resolveCustomer = async (
   const totalPaid = effectivePaid;
   const due = Math.max(totalPurchased - totalPaid, 0);
   const credit = Math.max(totalPaid - totalPurchased, 0);
+  if (!customerPhone || !customerName) {
+    return null;
+  }
   const [customer] = await Customer.create(
     [
       {
@@ -114,15 +123,16 @@ const resolveCustomer = async (
 // ─── Main Service ─────────────────────────────────────────
 
 export const createSale = async (payload: ICreateSalePayload) => {
-  const { companyId, createdBy, input } = payload;
+  const { companyId, createdBy, input,createdByType } = payload;
   const {
     customerName,
     customerPhone,
+    customerEmail,
+    customerId: customer_id,
     items,
     paymentMethod,
     paidAmount,
     note,
-    createdByType
   } = input;
 
   // 1. block online payments
@@ -258,11 +268,12 @@ export const createSale = async (payload: ICreateSalePayload) => {
     // 7. resolve or create customer
     const customerId = await resolveCustomer(
       companyObjectId,
-      customerName,
-      customerPhone,
       netAmount,
       effectivePaid,
       session,
+      customerName,
+      customerPhone,
+      customer_id,
     );
 
     // 8. deduct stock for each variant
@@ -286,11 +297,14 @@ export const createSale = async (payload: ICreateSalePayload) => {
         {
           companyId: companyObjectId,
           saleCode,
-          customer: {
-            name: customerName,
-            phone: customerPhone,
-            customerId, // CRM link comes later
-          },
+          ...(customerName &&
+            customerPhone && {
+              customer: {
+                name: customerName,
+                phone: customerPhone,
+                customerId, // CRM link comes later
+              },
+            }),
           items: calculatedItems,
           grossAmount,
           discountTotal,
@@ -305,7 +319,7 @@ export const createSale = async (payload: ICreateSalePayload) => {
           note: note ?? null,
           status: "completed",
           createdBy: createdBy,
-          createdByType
+          createdByType,
         },
       ],
       { session },

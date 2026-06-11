@@ -42,15 +42,16 @@ const ApiResponse_1 = require("../../utils/ApiResponse");
 const asyncHandler_1 = require("../../utils/asyncHandler");
 const SaleServices = __importStar(require("./sales.service"));
 exports.createSale = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const companyId = new mongoose_1.default.Types.ObjectId(req.company?._id);
-    let createdBy = null;
-    if (req.user !== undefined) {
-        createdBy = new mongoose_1.default.Types.ObjectId(req.user._id);
-    }
+    const companyId = new mongoose_1.default.Types.ObjectId(req.user.company_id);
+    const createdBy = new mongoose_1.default.Types.ObjectId(req.user._id);
+    const createdByType = req.user.role !== "customer" && req.user.role !== "super_admin"
+        ? "staff"
+        : "system";
     const result = await SaleServices.createSale({
         input: req.body,
         companyId,
         createdBy,
+        createdByType,
     });
     return ApiResponse_1.ApiResponse.created(res, result, "sales created successfully");
 });

@@ -54,7 +54,7 @@ const saleSchema = new Schema<ISaleDocument>(
     },
     customer: {
       type: customerSnapshotsSchema,
-      required: true,
+      default: null,
     },
     items: {
       type: [saleItemSchema],

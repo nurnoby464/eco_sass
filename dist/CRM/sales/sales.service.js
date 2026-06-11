@@ -47,11 +47,17 @@ const customer_schema_1 = __importDefault(require("../customer/customer.schema")
 const healper_1 = require("../../utils/healper");
 // ─── Helpers ──────────────────────────────────────────────
 const getAttribute = (attributes, key) => attributes.find((a) => a.key === key)?.value ?? "";
-const resolveCustomer = async (companyId, customerName, customerPhone, netAmount, effectivePaid, session) => {
-    const existing = await customer_schema_1.default.findOne({
-        companyId,
-        phone: customerPhone,
-    }).session(session);
+const resolveCustomer = async (companyId, netAmount, effectivePaid, session, customerName, customerPhone, customerId) => {
+    let existing = null;
+    if (customerId || customerPhone) {
+        existing = await customer_schema_1.default.findOne({
+            companyId,
+            $or: [
+                ...(companyId ? [{ _id: new mongoose_1.Types.ObjectId(companyId) }] : []),
+                ...(customerPhone ? [{ phone: customerPhone }] : []),
+            ],
+        }).session(session);
+    }
     if (existing) {
         await customer_schema_1.default.updateOne({ _id: existing._id }, [
             {
@@ -91,6 +97,9 @@ const resolveCustomer = async (companyId, customerName, customerPhone, netAmount
     const totalPaid = effectivePaid;
     const due = Math.max(totalPurchased - totalPaid, 0);
     const credit = Math.max(totalPaid - totalPurchased, 0);
+    if (!customerPhone || !customerName) {
+        return null;
+    }
     const [customer] = await customer_schema_1.default.create([
         {
             companyId,
@@ -109,8 +118,8 @@ const resolveCustomer = async (companyId, customerName, customerPhone, netAmount
 };
 // ─── Main Service ─────────────────────────────────────────
 const createSale = async (payload) => {
-    const { companyId, createdBy, input } = payload;
-    const { customerName, customerPhone, items, paymentMethod, paidAmount, note, createdByType } = input;
+    const { companyId, createdBy, input, createdByType } = payload;
+    const { customerName, customerPhone, customerEmail, customerId: customer_id, items, paymentMethod, paidAmount, note, } = input;
     // 1. block online payments
     if (paymentMethod === "card" || paymentMethod === "mobile_banking") {
         throw new appError_1.AppError("Online payments must use /orders/initiate endpoint", 400);
@@ -203,7 +212,7 @@ const createSale = async (payload) => {
                 ? "paid"
                 : "partial";
         // 7. resolve or create customer
-        const customerId = await resolveCustomer(companyObjectId, customerName, customerPhone, netAmount, effectivePaid, session);
+        const customerId = await resolveCustomer(companyObjectId, netAmount, effectivePaid, session, customerName, customerPhone, customer_id);
         // 8. deduct stock for each variant
         for (const item of calculatedItems) {
             await product_variant_schema_1.default.updateOne({
@@ -218,11 +227,14 @@ const createSale = async (payload) => {
             {
                 companyId: companyObjectId,
                 saleCode,
-                customer: {
-                    name: customerName,
-                    phone: customerPhone,
-                    customerId, // CRM link comes later
-                },
+                ...(customerName &&
+                    customerPhone && {
+                    customer: {
+                        name: customerName,
+                        phone: customerPhone,
+                        customerId, // CRM link comes later
+                    },
+                }),
                 items: calculatedItems,
                 grossAmount,
                 discountTotal,
@@ -237,7 +249,7 @@ const createSale = async (payload) => {
                 note: note ?? null,
                 status: "completed",
                 createdBy: createdBy,
-                createdByType
+                createdByType,
             },
         ], { session });
         await session.commitTransaction();

@@ -29,7 +29,7 @@ export interface ICustomerSnapshot {
 export interface ISale {
     companyId: mongoose.Types.ObjectId;
     saleCode: string;
-    customer: ICustomerSnapshot;
+    customer: ICustomerSnapshot | null;
     items: ISaleItem[];
     grossAmount: number;
     discountTotal: number;

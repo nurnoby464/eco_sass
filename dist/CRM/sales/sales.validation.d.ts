@@ -1,7 +1,9 @@
 import { z } from "zod";
 export declare const createSaleSchema: z.ZodObject<{
-    customerName: z.ZodString;
-    customerPhone: z.ZodString;
+    customerId: z.ZodOptional<z.ZodString>;
+    customerEmail: z.ZodOptional<z.ZodString>;
+    customerName: z.ZodOptional<z.ZodString>;
+    customerPhone: z.ZodOptional<z.ZodString>;
     items: z.ZodArray<z.ZodObject<{
         productId: z.ZodString;
         variantId: z.ZodString;
@@ -22,10 +24,7 @@ export declare const createSaleSchema: z.ZodObject<{
     }>;
     paidAmount: z.ZodDefault<z.ZodNumber>;
     note: z.ZodNullable<z.ZodOptional<z.ZodString>>;
-    createdByType: z.ZodEnum<{
-        staff: "staff";
-        system: "system";
-    }>;
+    discount: z.ZodString;
 }, z.core.$strip>;
 export type CreateSaleInput = z.infer<typeof createSaleSchema>;
 //# sourceMappingURL=sales.validation.d.ts.map

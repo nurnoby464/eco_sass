@@ -11,12 +11,18 @@ export const getCustomerList = async (
   query: GetCustomerQuery,
   companyId: Types.ObjectId,
 ) => {
-  const { page, limit, sort_by, sort_order, is_active } = query;
+  const { page, limit, sort_by, sort_order, is_active, search } = query;
 
   const filter: Record<string, unknown> = {
     companyId,
     isActive: true,
   };
+  if (search) {
+    filter.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { phone: { $regex: search, $options: "i" } },
+    ];
+  }
   const [customers, total] = await Promise.all([
     Customer.find(filter)
       .skip(useSkip({ page, limit }))
@@ -25,5 +31,5 @@ export const getCustomerList = async (
       .lean(),
     Customer.countDocuments(filter),
   ]);
-  return { customers, total ,page,limit};
+  return { customers, total, page, limit };
 };

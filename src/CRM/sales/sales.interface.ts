@@ -39,7 +39,7 @@ export interface ISale {
   companyId: mongoose.Types.ObjectId;
   saleCode: string;
 
-  customer: ICustomerSnapshot;
+  customer: ICustomerSnapshot | null;
 
   items: ISaleItem[];
 

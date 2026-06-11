@@ -23,6 +23,7 @@ const fixIndexes_1 = require("./dev/fixIndexes");
 const order_route_1 = require("./CRM/order/order.route");
 const invoice_route_1 = require("./CRM/invoice/invoice.route");
 const public_route_1 = require("./module/public/public.route");
+const banner_route_1 = require("./module/siteManagement/banner/banner.route");
 // routes
 // import authRoutes from './modules/auth/auth.routes';
 // import adminRoutes from './modules/admin/admin.routes';
@@ -90,6 +91,7 @@ app.use("/api/v1/customer", customer_route_1.CustomerRouter);
 app.use('/api/v1/dev', fixIndexes_1.DevRouter);
 app.use('/api/v1/order', order_route_1.OrderRouter);
 app.use('/api/v1/invoices', invoice_route_1.InvoiceRouter);
+app.use('/api/v1/banners', banner_route_1.BannerRouter);
 // Health check
 app.get("/", (req, res) => {
     res.json({ success: true, message: "Welcome to Multi vendor SAAS" });

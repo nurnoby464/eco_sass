@@ -41,9 +41,10 @@ const express_1 = __importDefault(require("express"));
 const SaleController = __importStar(require("./sales.controller"));
 const validate_1 = require("../../middlewares/validate");
 const sales_validation_1 = require("./sales.validation");
-const companyIdentifier_1 = require("../../middlewares/companyIdentifier");
 const saleAuthenticateAndUnauthenticate_1 = require("../../middlewares/saleAuthenticateAndUnauthenticate");
+const AuthenticateHelper_1 = require("../../middlewares/AuthenticateHelper");
+const guard_1 = require("../../middlewares/guard");
 const router = express_1.default.Router();
-router.post("/create", (0, validate_1.validate)({ body: sales_validation_1.createSaleSchema }), companyIdentifier_1.companyIdentifier, saleAuthenticateAndUnauthenticate_1.saleAnAuthenticateAndUnauthenticated, SaleController.createSale);
+router.post("/", (0, validate_1.validate)({ body: sales_validation_1.createSaleSchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, saleAuthenticateAndUnauthenticate_1.saleAnAuthenticateAndUnauthenticated, (0, guard_1.guard)("super_admin", "admin", "sales", "account"), SaleController.createSale);
 exports.SaleRouter = router;
 //# sourceMappingURL=sales.route.js.map

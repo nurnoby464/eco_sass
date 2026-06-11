@@ -46,7 +46,7 @@ const saleSchema = new mongoose_1.Schema({
     },
     customer: {
         type: customerSnapshotsSchema,
-        required: true,
+        default: null,
     },
     items: {
         type: [saleItemSchema],
