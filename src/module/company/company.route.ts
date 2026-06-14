@@ -2,6 +2,8 @@ import express from "express";
 import { validate } from "../../middlewares/validate";
 import {
   createCompanyUserSchema,
+  updateCompanySchema,
+  updateSocialMediaSchema,
   updateUserSchema,
   userParamsSchema,
   userQuerySchema,
@@ -12,8 +14,10 @@ import {
   verifySession,
 } from "../../middlewares/AuthenticateHelper";
 import { CompanyControllers } from "./company.controller";
+import { companyIdentifier } from "../../middlewares/companyIdentifier";
 
 const router = express.Router();
+router.get("/my-company", companyIdentifier, CompanyControllers.getMyCompany);
 router.use(authenticate);
 router.use(verifySession);
 router.post(
@@ -34,11 +38,23 @@ router.get(
   validate({ params: userParamsSchema }),
   CompanyControllers.getUserById,
 );
+
 router.patch(
   "/users/:id",
   guard("super_admin", "admin"),
   validate({ params: userParamsSchema, body: updateUserSchema }),
   CompanyControllers.updateUser,
+);
+
+router.patch(
+  "/my-company",
+  validate({ body: updateCompanySchema }),
+  CompanyControllers.updateMyCompany,
+);
+router.patch(
+  "/social-media",
+  validate({ body: updateSocialMediaSchema }),
+  CompanyControllers.updateSocialMedia,
 );
 
 // ─── Delete ───────────────────────────────────────────────

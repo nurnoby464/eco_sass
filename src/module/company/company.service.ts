@@ -1,10 +1,12 @@
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { AppError } from "../../middlewares/appError";
 import User from "../super_admin/super_admin.schema";
 import { ICompanyDocument } from "./company.interface";
 import Company from "./company.schema";
 import {
   CompanyUserInput,
+  UpdateCompanyInput,
+  UpdateSocialMediaInput,
   UpdateUserInput,
   UserQueryInput,
 } from "./company.validation";
@@ -264,10 +266,78 @@ const deleteUser = async (userId: string, req: Request) => {
   });
 };
 
+const getMyCompany = async (id: Types.ObjectId) => {
+  const result = await Company.findById(id);
+  return result;
+};
+
+ const updateMyCompany = async (
+  companyId: Types.ObjectId,
+  data: UpdateCompanyInput
+) => {
+  const company = await Company.findById(companyId);
+  if (!company) throw new AppError("Company not found", 404);
+ 
+  // build update object — only include fields that were actually sent
+  const update: Partial<UpdateCompanyInput> = {};
+ 
+  if (data.company_name !== undefined) update.company_name = data.company_name;
+  if (data.phone        !== undefined) update.phone        = data.phone;
+  if (data.address      !== undefined) update.address      = data.address;
+ 
+  // logo: only update if a non-empty URL was provided
+  if (data.logo && data.logo.trim() !== "") {
+    update.logo = data.logo;
+  }
+ 
+  const updated = await Company.findByIdAndUpdate(
+    companyId,
+    { $set: update },
+    { new: true, runValidators: true }
+  ).lean();
+ 
+  return updated;
+};
+
+const updateSocialMedia = async (
+  companyId: Types.ObjectId,
+  data: UpdateSocialMediaInput
+) => {
+  const company = await Company.findById(companyId);
+  if (!company) throw new AppError("Company not found", 404);
+
+  if (!data.social_media) throw new AppError("No social media data provided", 400);
+
+  // build $set only for fields that were actually sent
+  const socialUpdate: Record<string, string | null> = {};
+
+  const fields = [
+    "facebook", "instagram", "twitter", "youtube",
+    "tiktok", "linkedin", "whatsapp", "pinterest", "website",
+  ] as const;
+
+  fields.forEach((field) => {
+    const value = data.social_media?.[field];
+    if (value !== undefined) {
+      // store empty string as null
+      socialUpdate[`social_media.${field}`] = value === "" ? null : value;
+    }
+  });
+
+  const updated = await Company.findByIdAndUpdate(
+    companyId,
+    { $set: socialUpdate },
+    { new: true, runValidators: true }
+  ).lean();
+  return updated;
+};
 export const CompanyServices = {
   createCompanyUser,
   getAllUsers,
   getUserById,
   updateUser,
   deleteUser,
+  getMyCompany,
+  updateMyCompany,
+  updateSocialMedia
 };

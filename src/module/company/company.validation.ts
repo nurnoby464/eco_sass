@@ -192,6 +192,32 @@ export const updateUserSchema = z.object({
     .optional(),
 });
 
+const urlOrEmpty = z
+  .string()
+  .trim()
+  .url("Must be a valid URL")
+  .or(z.literal(""))
+  .nullable()
+  .optional();
+
+export const updateSocialMediaSchema = z.object({
+  social_media: z
+    .object({
+      facebook: urlOrEmpty,
+      instagram: urlOrEmpty,
+      twitter: urlOrEmpty,
+      youtube: urlOrEmpty,
+      tiktok: urlOrEmpty,
+      linkedin: urlOrEmpty,
+      whatsapp: urlOrEmpty,
+      pinterest: urlOrEmpty,
+      website: urlOrEmpty,
+    })
+    .optional(),
+});
+
+export type UpdateSocialMediaInput = z.infer<typeof updateSocialMediaSchema>;
+
 export type UserQueryInput = z.infer<typeof userQuerySchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>;

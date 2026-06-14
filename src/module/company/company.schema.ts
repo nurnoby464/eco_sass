@@ -61,6 +61,17 @@ const CompanySchema = new Schema<ICompanyDocument>(
       ],
       // example: "fashion-zone" → fashion-zone.yourplatform.com
     },
+    social_media: {
+      facebook: { type: String, trim: true },
+      instagram: { type: String, trim: true },
+      twitter: { type: String, trim: true },
+      youtube: { type: String, trim: true },
+      tiktok: { type: String, trim: true },
+      linkedin: { type: String, trim: true },
+      whatsapp: { type: String, trim: true },
+      pinterest: { type: String, trim: true },
+      website: { type: String, trim: true },
+    },
     // ─────────────────────────────────────────────────────
 
     status: {
@@ -75,7 +86,7 @@ const CompanySchema = new Schema<ICompanyDocument>(
     admin_id: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      default : null,
+      default: null,
     },
 
     createdBy: {

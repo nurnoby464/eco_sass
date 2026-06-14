@@ -2,7 +2,8 @@ import express from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { CompanyServices } from "./company.service";
 import { ApiResponse } from "../../utils/ApiResponse";
-import { UserQueryInput } from "./company.validation";
+import { UpdateSocialMediaInput, UserQueryInput } from "./company.validation";
+import { Types } from "mongoose";
 
 const createCompanyUser: express.RequestHandler = asyncHandler(
   async (req, res) => {
@@ -12,11 +13,18 @@ const createCompanyUser: express.RequestHandler = asyncHandler(
 );
 
 const getAllUsers: express.RequestHandler = asyncHandler(async (req, res) => {
-  const {user, page, limit, total} = await CompanyServices.getAllUsers(
+  const { user, page, limit, total } = await CompanyServices.getAllUsers(
     req.validatedQuery as UserQueryInput,
     req,
   );
-  return ApiResponse.paginated(res,"User fetch successfully", user, total, page, limit);
+  return ApiResponse.paginated(
+    res,
+    "User fetch successfully",
+    user,
+    total,
+    page,
+    limit,
+  );
   // return ApiResponse.success(res, result, "Users fetched successfully");
 });
 
@@ -42,10 +50,54 @@ const deleteUser: express.RequestHandler = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, null, "User deleted successfully");
 });
 
+const getMyCompany: express.RequestHandler = asyncHandler(async (req, res) => {
+  const companyId = req.company?._id;
+  if (!companyId) {
+    return ApiResponse.error(res, "Company is required");
+  }
+  const result = await CompanyServices.getMyCompany(companyId);
+  return ApiResponse.success(res, result, "My company info fetch successfully");
+});
+
+const updateMyCompany: express.RequestHandler = asyncHandler(
+  async (req, res) => {
+    const companyId = req.user.company_id;
+    if (!companyId) {
+      return ApiResponse.error(res, "Company is required");
+    }
+    const result = await CompanyServices.updateMyCompany(companyId, req.body);
+    return ApiResponse.success(
+      res,
+      result,
+      "My company info fetch successfully",
+    );
+  },
+);
+
+const updateSocialMedia: express.RequestHandler = asyncHandler(
+  async (req, res) => {
+    const companyId = req.user.company_id;
+    if(!companyId){
+      return ApiResponse.error(res,"Failed, Company id is required")
+    }
+    const data = req.body as UpdateSocialMediaInput;
+
+    const updated = await CompanyServices.updateSocialMedia(companyId, data);
+    return ApiResponse.success(
+      res,
+      updated,
+      "Social media updated successfully",
+    );
+  },
+);
+
 export const CompanyControllers = {
   createCompanyUser,
   getAllUsers,
   getUserById,
   updateUser,
   deleteUser,
+  getMyCompany,
+  updateMyCompany,
+  updateSocialMedia,
 };
