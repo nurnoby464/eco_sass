@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateUserSchema = exports.userParamsSchema = exports.userQuerySchema = exports.updateCompanySchema = exports.companyQuerySchema = exports.companyParamsSchema = exports.createCompanyUserSchema = exports.createNewCompanySchema = void 0;
+exports.updateSocialMediaSchema = exports.updateUserSchema = exports.userParamsSchema = exports.userQuerySchema = exports.updateCompanySchema = exports.companyQuerySchema = exports.companyParamsSchema = exports.createCompanyUserSchema = exports.createNewCompanySchema = void 0;
 const zod_1 = __importDefault(require("zod"));
 exports.createNewCompanySchema = zod_1.default.object({
     company_name: zod_1.default
@@ -174,6 +174,28 @@ exports.updateUserSchema = zod_1.default.object({
         "sales",
         "report",
     ])
+        .optional(),
+});
+const urlOrEmpty = zod_1.default
+    .string()
+    .trim()
+    .url("Must be a valid URL")
+    .or(zod_1.default.literal(""))
+    .nullable()
+    .optional();
+exports.updateSocialMediaSchema = zod_1.default.object({
+    social_media: zod_1.default
+        .object({
+        facebook: urlOrEmpty,
+        instagram: urlOrEmpty,
+        twitter: urlOrEmpty,
+        youtube: urlOrEmpty,
+        tiktok: urlOrEmpty,
+        linkedin: urlOrEmpty,
+        whatsapp: urlOrEmpty,
+        pinterest: urlOrEmpty,
+        website: urlOrEmpty,
+    })
         .optional(),
 });
 //# sourceMappingURL=company.validation.js.map

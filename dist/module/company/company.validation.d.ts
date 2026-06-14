@@ -92,6 +92,20 @@ export declare const updateUserSchema: z.ZodObject<{
         admin: "admin";
     }>>;
 }, z.core.$strip>;
+export declare const updateSocialMediaSchema: z.ZodObject<{
+    social_media: z.ZodOptional<z.ZodObject<{
+        facebook: z.ZodOptional<z.ZodNullable<z.ZodUnion<[z.ZodString, z.ZodLiteral<"">]>>>;
+        instagram: z.ZodOptional<z.ZodNullable<z.ZodUnion<[z.ZodString, z.ZodLiteral<"">]>>>;
+        twitter: z.ZodOptional<z.ZodNullable<z.ZodUnion<[z.ZodString, z.ZodLiteral<"">]>>>;
+        youtube: z.ZodOptional<z.ZodNullable<z.ZodUnion<[z.ZodString, z.ZodLiteral<"">]>>>;
+        tiktok: z.ZodOptional<z.ZodNullable<z.ZodUnion<[z.ZodString, z.ZodLiteral<"">]>>>;
+        linkedin: z.ZodOptional<z.ZodNullable<z.ZodUnion<[z.ZodString, z.ZodLiteral<"">]>>>;
+        whatsapp: z.ZodOptional<z.ZodNullable<z.ZodUnion<[z.ZodString, z.ZodLiteral<"">]>>>;
+        pinterest: z.ZodOptional<z.ZodNullable<z.ZodUnion<[z.ZodString, z.ZodLiteral<"">]>>>;
+        website: z.ZodOptional<z.ZodNullable<z.ZodUnion<[z.ZodString, z.ZodLiteral<"">]>>>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+export type UpdateSocialMediaInput = z.infer<typeof updateSocialMediaSchema>;
 export type UserQueryInput = z.infer<typeof userQuerySchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>;

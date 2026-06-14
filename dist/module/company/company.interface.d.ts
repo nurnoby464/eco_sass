@@ -8,6 +8,17 @@ export interface ICompany {
     domain: string | null;
     subdomain: string | null;
     status: "active" | "inactive" | "suspended";
+    social_media?: {
+        facebook?: string;
+        instagram?: string;
+        twitter?: string;
+        youtube?: string;
+        tiktok?: string;
+        linkedin?: string;
+        whatsapp?: string;
+        pinterest?: string;
+        website?: string;
+    };
     admin_id: mongoose.Types.ObjectId | null;
     createdBy: mongoose.Types.ObjectId;
     createdAt: Date;

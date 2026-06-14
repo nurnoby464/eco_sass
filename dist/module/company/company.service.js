@@ -230,11 +230,59 @@ const deleteUser = async (userId, req) => {
         after: null,
     });
 };
+const getMyCompany = async (id) => {
+    const result = await company_schema_1.default.findById(id);
+    return result;
+};
+const updateMyCompany = async (companyId, data) => {
+    const company = await company_schema_1.default.findById(companyId);
+    if (!company)
+        throw new appError_1.AppError("Company not found", 404);
+    // build update object — only include fields that were actually sent
+    const update = {};
+    if (data.company_name !== undefined)
+        update.company_name = data.company_name;
+    if (data.phone !== undefined)
+        update.phone = data.phone;
+    if (data.address !== undefined)
+        update.address = data.address;
+    // logo: only update if a non-empty URL was provided
+    if (data.logo && data.logo.trim() !== "") {
+        update.logo = data.logo;
+    }
+    const updated = await company_schema_1.default.findByIdAndUpdate(companyId, { $set: update }, { new: true, runValidators: true }).lean();
+    return updated;
+};
+const updateSocialMedia = async (companyId, data) => {
+    const company = await company_schema_1.default.findById(companyId);
+    if (!company)
+        throw new appError_1.AppError("Company not found", 404);
+    if (!data.social_media)
+        throw new appError_1.AppError("No social media data provided", 400);
+    // build $set only for fields that were actually sent
+    const socialUpdate = {};
+    const fields = [
+        "facebook", "instagram", "twitter", "youtube",
+        "tiktok", "linkedin", "whatsapp", "pinterest", "website",
+    ];
+    fields.forEach((field) => {
+        const value = data.social_media?.[field];
+        if (value !== undefined) {
+            // store empty string as null
+            socialUpdate[`social_media.${field}`] = value === "" ? null : value;
+        }
+    });
+    const updated = await company_schema_1.default.findByIdAndUpdate(companyId, { $set: socialUpdate }, { new: true, runValidators: true }).lean();
+    return updated;
+};
 exports.CompanyServices = {
     createCompanyUser,
     getAllUsers,
     getUserById,
     updateUser,
     deleteUser,
+    getMyCompany,
+    updateMyCompany,
+    updateSocialMedia
 };
 //# sourceMappingURL=company.service.js.map

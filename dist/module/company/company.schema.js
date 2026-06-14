@@ -54,6 +54,17 @@ const CompanySchema = new mongoose_1.Schema({
         ],
         // example: "fashion-zone" → fashion-zone.yourplatform.com
     },
+    social_media: {
+        facebook: { type: String, trim: true },
+        instagram: { type: String, trim: true },
+        twitter: { type: String, trim: true },
+        youtube: { type: String, trim: true },
+        tiktok: { type: String, trim: true },
+        linkedin: { type: String, trim: true },
+        whatsapp: { type: String, trim: true },
+        pinterest: { type: String, trim: true },
+        website: { type: String, trim: true },
+    },
     // ─────────────────────────────────────────────────────
     status: {
         type: String,
