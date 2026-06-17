@@ -573,6 +573,9 @@ const updatePayment = async (id, company_id, payload, req) => {
     if (payload.paid_amount > remaining_due) {
         throw new appError_1.AppError(`Paid amount (${payload.paid_amount}) cannot exceed total amount (${remaining_due})`, 422);
     }
+    if (payload.paymentMethod !== "cash") {
+        throw new appError_1.AppError("Online payment integration is under development. bKash, Nagad, and card support will be available in a future update. Stay tuned!", 400);
+    }
     const session = await mongoose_2.default.startSession();
     try {
         await session.withTransaction(async () => {

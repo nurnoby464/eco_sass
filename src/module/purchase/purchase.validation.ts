@@ -97,6 +97,7 @@ export const createPurchaseSchema = z
 export const updatePurchaseSchema = z.object({
   paid_amount: z.number().min(0, "Paid amount must be ≥ 0"),
   note: z.string().trim().max(2000).optional(),
+  paymentMethod: z.enum(["cash", "online"]),
 });
 
 export const updateStockPurchaseSchema = z.object({
@@ -136,7 +137,7 @@ export const updateStockPurchaseSchema = z.object({
     .string()
     .datetime({ message: "Invalid date format" })
     .optional(),
-    note: z.string().trim().max(2000).optional(),
+  note: z.string().trim().max(2000).optional(),
 });
 
 export const purchaseParamsSchema = z.object({ id: mongoId });

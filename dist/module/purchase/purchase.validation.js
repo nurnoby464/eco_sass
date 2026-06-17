@@ -92,6 +92,7 @@ exports.createPurchaseSchema = zod_1.z
 exports.updatePurchaseSchema = zod_1.z.object({
     paid_amount: zod_1.z.number().min(0, "Paid amount must be ≥ 0"),
     note: zod_1.z.string().trim().max(2000).optional(),
+    paymentMethod: zod_1.z.enum(["cash", "online"]),
 });
 exports.updateStockPurchaseSchema = zod_1.z.object({
     variantId: zod_1.z

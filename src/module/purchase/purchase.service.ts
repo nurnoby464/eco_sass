@@ -858,6 +858,12 @@ export const updatePayment = async (
       422,
     );
   }
+  if (payload.paymentMethod !== "cash") {
+    throw new AppError(
+      "Online payment integration is under development. bKash, Nagad, and card support will be available in a future update. Stay tuned!",
+      400,
+    );
+  }
   const session = await mongoose.startSession();
   try {
     await session.withTransaction(async () => {

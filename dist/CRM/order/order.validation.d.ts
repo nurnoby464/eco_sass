@@ -29,10 +29,10 @@ export declare const createOrderBody: z.ZodObject<{
     payment_method: z.ZodDefault<z.ZodNullable<z.ZodEnum<{
         credit: "credit";
         cash: "cash";
+        online: "online";
         cash_on_delivery: "cash_on_delivery";
         card: "card";
         mobile_banking: "mobile_banking";
-        online: "online";
     }>>>;
     note: z.ZodDefault<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
@@ -55,9 +55,9 @@ export declare const updatePaymentBody: z.ZodObject<{
     paid_amount: z.ZodNumber;
     payment_method: z.ZodEnum<{
         cash: "cash";
+        online: "online";
         card: "card";
         mobile_banking: "mobile_banking";
-        online: "online";
     }>;
 }, z.core.$strip>;
 export declare const getOrderListQuery: z.ZodObject<{

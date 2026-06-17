@@ -37,6 +37,10 @@ export declare const createPurchaseSchema: z.ZodObject<{
 export declare const updatePurchaseSchema: z.ZodObject<{
     paid_amount: z.ZodNumber;
     note: z.ZodOptional<z.ZodString>;
+    paymentMethod: z.ZodEnum<{
+        cash: "cash";
+        online: "online";
+    }>;
 }, z.core.$strip>;
 export declare const updateStockPurchaseSchema: z.ZodObject<{
     variantId: z.ZodString;
