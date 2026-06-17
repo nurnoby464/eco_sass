@@ -72,7 +72,7 @@ export const deleteVariant = asyncHandler(
 export const getAllProductWithVariant = asyncHandler(
   async (req: Request, res: Response) => {
     const { data, total, query } =
-      await ProductVariantServices.getAllProductWithVariant({req});
+      await ProductVariantServices.getAllProductWithVariant({ req });
     return ApiResponse.paginated(
       res,
       "Get Product with variant successfully",
@@ -81,5 +81,12 @@ export const getAllProductWithVariant = asyncHandler(
       query.page,
       query.limit,
     );
+  },
+);
+
+export const editProductVariant = asyncHandler(
+  async (req: Request, res: Response) => {
+    const result = await ProductVariantServices.editProductVariant(req);
+    return ApiResponse.success(res, result, "Variant updated successfully");
   },
 );

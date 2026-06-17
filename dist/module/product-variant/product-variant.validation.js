@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.productVariantQuerySchema = exports.productVariantParamsSchema = exports.variantParamsSchema = exports.updateVariantSchema = exports.createVariantSchema = void 0;
+exports.editProductVariantSchema = exports.productVariantQuerySchema = exports.productVariantParamsSchema = exports.variantParamsSchema = exports.updateVariantSchema = exports.createVariantSchema = void 0;
 const zod_1 = require("zod");
 const mongoId = zod_1.z
     .string()
@@ -58,5 +58,20 @@ exports.productVariantQuerySchema = zod_1.z.object({
         .enum(["purchase_date", "total_amount", "due_amount", "createdAt"])
         .default("createdAt"),
     stock: zod_1.z.enum(["lowStock", "outOfStock", "reminderStock"]).optional(),
+});
+exports.editProductVariantSchema = zod_1.z.object({
+    variantId: mongoId,
+    sellingPrice: zod_1.z
+        .number({ error: "Selling price is required" })
+        .positive("Selling price must be greater than 0")
+        .min(0.01, "Selling price must be at least 0.01"),
+    newImage: zod_1.z.string().url("Invalid image URL").nullable().optional(),
+    previousImage: zod_1.z.string().url("Invalid image URL"),
+    alertStock: zod_1.z
+        .number()
+        .int("Alert stock must be an integer")
+        .nonnegative("Alert stock cannot be negative")
+        .max(999999, "Alert stock cannot exceed 999,999")
+        .optional(),
 });
 //# sourceMappingURL=product-variant.validation.js.map

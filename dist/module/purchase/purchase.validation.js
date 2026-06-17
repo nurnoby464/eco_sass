@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.purchaseQuerySchema = exports.purchaseParamsSchema = exports.updatePurchaseSchema = exports.createPurchaseSchema = void 0;
+exports.purchaseQuerySchema = exports.purchaseParamsSchema = exports.updateStockPurchaseSchema = exports.updatePurchaseSchema = exports.createPurchaseSchema = void 0;
 // src/module/purchase/purchase.validation.ts
 const zod_1 = require("zod");
 const mongoId = zod_1.z
@@ -9,7 +9,9 @@ const mongoId = zod_1.z
     .regex(/^[a-f\d]{24}$/i, "Invalid ObjectId");
 // helper — reuse for all optional mongoId fields
 const optionalEmail = zod_1.z
-    .string().email("Invalid email").trim()
+    .string()
+    .email("Invalid email")
+    .trim()
     .optional()
     .or(zod_1.z.literal("").transform(() => undefined))
     .or(zod_1.z.null().transform(() => undefined));
@@ -17,7 +19,9 @@ const optionalMongoId = mongoId
     .optional()
     .or(zod_1.z.literal("").transform(() => undefined))
     .or(zod_1.z.null().transform(() => undefined));
-const optionalString = zod_1.z.string().trim()
+const optionalString = zod_1.z
+    .string()
+    .trim()
     .optional()
     .or(zod_1.z.literal("").transform(() => undefined))
     .or(zod_1.z.null().transform(() => undefined));
@@ -87,6 +91,41 @@ exports.createPurchaseSchema = zod_1.z
 });
 exports.updatePurchaseSchema = zod_1.z.object({
     paid_amount: zod_1.z.number().min(0, "Paid amount must be ≥ 0"),
+    note: zod_1.z.string().trim().max(2000).optional(),
+});
+exports.updateStockPurchaseSchema = zod_1.z.object({
+    variantId: zod_1.z
+        .string({
+        error: "Product ID is required",
+    })
+        .min(1, "Product ID cannot be empty"),
+    quantity: zod_1.z
+        .number({
+        error: "Quantity is required",
+    })
+        .int("Quantity must be an integer")
+        .positive("Quantity must be greater than 0")
+        .max(999999, "Quantity cannot exceed 999,999"),
+    sellingPrice: zod_1.z
+        .number({
+        error: "Selling price is required",
+    })
+        .positive("Selling price must be greater than 0")
+        .min(0.01, "Selling price must be at least 0.01"),
+    buyingPrice: zod_1.z
+        .number({
+        error: "Buying price is required",
+    })
+        .nonnegative("Buying price cannot be negative"),
+    paidAmount: zod_1.z
+        .number({
+        error: "Paid amount is required",
+    })
+        .nonnegative("Paid amount cannot be negative"),
+    purchaseDate: zod_1.z
+        .string()
+        .datetime({ message: "Invalid date format" })
+        .optional(),
     note: zod_1.z.string().trim().max(2000).optional(),
 });
 exports.purchaseParamsSchema = zod_1.z.object({ id: mongoId });

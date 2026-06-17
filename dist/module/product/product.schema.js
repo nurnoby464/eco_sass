@@ -27,7 +27,7 @@ const ProductSchema = new mongoose_1.Schema({
         ref: "Category",
         required: true,
     },
-    // vendor_id: { type: Schema.Types.ObjectId, ref: "Vendor", required: true },
+    vendor_id: { type: mongoose_1.Schema.Types.ObjectId, ref: "Vendor", required: true },
     name: {
         type: String,
         required: [true, "Product name is required"],

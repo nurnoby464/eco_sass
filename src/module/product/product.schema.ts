@@ -33,7 +33,7 @@ const ProductSchema = new Schema<IProduct>(
       ref: "Category",
       required: true,
     },
-    // vendor_id: { type: Schema.Types.ObjectId, ref: "Vendor", required: true },
+    vendor_id: { type: Schema.Types.ObjectId, ref: "Vendor", required: true },
 
     name: {
       type: String,

@@ -3,15 +3,17 @@ import { Request } from "express";
 import Product from "../product/product.schema";
 import ProductVariant from "../product-variant/product-variant.schema";
 import { IAttribute } from "./product-variant.interface";
-import { AppError } from "../../middlewares/appError";
+
 import { auditLog } from "../../utils/auditLogger";
 import { AUDIT_ACTIONS } from "../audit/audit.interface";
 import { sanitizeData } from "../../utils/sanitizeData";
 import {
   CreateVariantInput,
+  EditProductVariantInput,
   UpdateVariantInput,
 } from "./product-variant.validation";
 import { useSkip } from "../../utils/useSkip";
+import { AppError } from "../../middlewares/appError";
 
 // interface
 
@@ -366,4 +368,91 @@ export const getAllProductWithVariant = async (payload: IGetProductVariant) => {
     reminderStock: stats.reminderStock,
   };
   return { data, total, query };
+};
+
+export const editProductVariant = async (req: Request) => {
+  const input = req.body;
+  const companyId = req.user.company_id;
+  const userId = req.user._id;
+  if (!companyId) {
+    throw new AppError("CompanyId not found", 400);
+  }
+  const { variantId, sellingPrice, newImage, previousImage, alertStock } =
+    input as EditProductVariantInput;
+
+  const existing = await ProductVariant.findOne({
+    company_id: companyId,
+    _id: new Types.ObjectId(variantId),
+  });
+  if (!existing) {
+    throw new AppError("Product variant not found");
+  }
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+    const updateVariant = await ProductVariant.findOneAndUpdate(
+      {
+        company_id: companyId,
+        _id: existing._id,
+      },
+      {
+        $set: {
+          selling_price: sellingPrice ? sellingPrice : existing.selling_price,
+          low_stock_alert: alertStock ? alertStock : existing.low_stock_alert,
+          image: newImage ? newImage : existing.image,
+        },
+      },
+      { session, returnDocument: "after", runValidators: true },
+    );
+    if (!updateVariant) {
+      throw new AppError("Failed to edit product variant");
+    }
+
+    const editProduct = await Product.findOneAndUpdate(
+      { company_id: companyId, _id: existing.product_id },
+      [
+        {
+          $set: {
+            ...(newImage && {
+              images: {
+                $concatArrays: [
+                  {
+                    $filter: {
+                      input: "$images",
+                      as: "img",
+                      cond: { $ne: ["$$img", existing.image] },
+                    },
+                  },
+                  [newImage],
+                ],
+              },
+            }),
+            display_price_max: {
+              $cond: {
+                if: { $gte: ["$display_price_max", sellingPrice] },
+                then: "$display_price_max",
+                else: sellingPrice,
+              },
+            },
+            display_price_min: {
+              $min: ["$display_price_min", sellingPrice],
+            },
+          },
+        },
+      ],
+      {
+        session,
+        returnDocument: "after",
+        runValidators: true,
+        updatePipeline: true,
+      },
+    );
+    await session.commitTransaction();
+    return updateVariant;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    await session.endSession();
+  }
 };

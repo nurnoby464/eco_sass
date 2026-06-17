@@ -8,6 +8,7 @@ import { guard } from "../../middlewares/guard";
 import * as ProductVariantController from "./product-variant.controller";
 import {
   createVariantSchema,
+  editProductVariantSchema,
   productVariantParamsSchema,
   productVariantQuerySchema,
   updateVariantSchema,
@@ -40,6 +41,15 @@ variantRouter
     verifySession,
     guard("super_admin", "admin", "inventory"),
     ProductVariantController.createVariant,
+  );
+variantRouter
+  .route("/edit")
+  .patch(
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "inventory"),
+    validate({ body: editProductVariantSchema }),
+    ProductVariantController.editProductVariant,
   );
 
 variantRouter

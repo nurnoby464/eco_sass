@@ -7,8 +7,12 @@ import {
   purchaseParamsSchema,
   purchaseQuerySchema,
   updatePurchaseSchema,
+  updateStockPurchaseSchema,
 } from "./purchase.validation";
-import { authenticate, verifySession } from "../../middlewares/AuthenticateHelper";
+import {
+  authenticate,
+  verifySession,
+} from "../../middlewares/AuthenticateHelper";
 import { guard } from "../../middlewares/guard";
 
 const router = Router();
@@ -18,15 +22,27 @@ router
   .route("/")
   .get(
     validate({ query: purchaseQuerySchema }),
-    authenticate, verifySession,
+    authenticate,
+    verifySession,
     guard("super_admin", "admin", "account"),
     PurchaseController.getPurchases,
   )
   .post(
     validate({ body: createPurchaseSchema }),
-    authenticate, verifySession,
+    authenticate,
+    verifySession,
     guard("super_admin", "admin", "account"),
     PurchaseController.createPurchase,
+  );
+
+router
+  .route("/update-stock")
+  .patch(
+    authenticate,
+    verifySession,
+    guard("super_admin", "admin", "account"),
+    validate({ body: updateStockPurchaseSchema }),
+    PurchaseController.updateStock,
   );
 
 // ── /api/purchases/:id ────────────────────────────────────
@@ -34,21 +50,24 @@ router
   .route("/:id")
   .get(
     validate({ params: purchaseParamsSchema }),
-    authenticate, verifySession,
+    authenticate,
+    verifySession,
     guard("super_admin", "admin", "account"),
     PurchaseController.getPurchaseById,
   )
   .patch(
     validate({ params: purchaseParamsSchema, body: updatePurchaseSchema }),
-    authenticate, verifySession,
+    authenticate,
+    verifySession,
     guard("super_admin", "admin", "account"),
-   PurchaseController.updatePayment
+    PurchaseController.updatePayment,
   )
   .delete(
     validate({ params: purchaseParamsSchema }),
-    authenticate, verifySession,
+    authenticate,
+    verifySession,
     guard("super_admin", "admin"),
-   PurchaseController.remove
+    PurchaseController.remove,
   );
 
 export const PurchaseRoute = router;

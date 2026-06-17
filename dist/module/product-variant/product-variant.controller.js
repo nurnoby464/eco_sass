@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllProductWithVariant = exports.deleteVariant = exports.updateVariant = exports.getVariantById = exports.getVariants = exports.createVariant = void 0;
+exports.editProductVariant = exports.getAllProductWithVariant = exports.deleteVariant = exports.updateVariant = exports.getVariantById = exports.getVariants = exports.createVariant = void 0;
 const asyncHandler_1 = require("../../utils/asyncHandler");
 const ApiResponse_1 = require("../../utils/ApiResponse");
 const ProductVariantServices = __importStar(require("./product-variant.service"));
@@ -79,5 +79,9 @@ exports.deleteVariant = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
 exports.getAllProductWithVariant = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { data, total, query } = await ProductVariantServices.getAllProductWithVariant({ req });
     return ApiResponse_1.ApiResponse.paginated(res, "Get Product with variant successfully", data, total, query.page, query.limit);
+});
+exports.editProductVariant = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const result = await ProductVariantServices.editProductVariant(req);
+    return ApiResponse_1.ApiResponse.success(res, result, "Variant updated successfully");
 });
 //# sourceMappingURL=product-variant.controller.js.map

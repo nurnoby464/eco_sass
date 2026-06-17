@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.remove = exports.updatePayment = exports.getPurchaseById = exports.getPurchases = exports.createPurchase = void 0;
+exports.updateStock = exports.remove = exports.updatePayment = exports.getPurchaseById = exports.getPurchases = exports.createPurchase = void 0;
 const asyncHandler_1 = require("../../utils/asyncHandler");
 const ApiResponse_1 = require("../../utils/ApiResponse");
 const PurchaseService = __importStar(require("./purchase.service"));
@@ -72,5 +72,10 @@ exports.remove = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const company_id = new mongoose_1.default.Types.ObjectId(req.user.company_id);
     await PurchaseService.deletePurchase(req.params.id, company_id, req);
     return ApiResponse_1.ApiResponse.success(res, null, "Purchase deleted successfully");
+});
+exports.updateStock = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    // const company_id = new mongoose.Types.ObjectId(req.user.company_id!);
+    const result = await PurchaseService.updateStock(req);
+    return ApiResponse_1.ApiResponse.success(res, result, "Purchase deleted successfully");
 });
 //# sourceMappingURL=purchase.controller.js.map

@@ -3,9 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deletePurchase = exports.updatePayment = exports.getPurchaseById = exports.getPurchases = exports.createPurchase = void 0;
+exports.updateStock = exports.deletePurchase = exports.updatePayment = exports.getPurchaseById = exports.getPurchases = exports.createPurchase = void 0;
+const mongoose_1 = require("mongoose");
 // src/module/purchase/purchase.service.ts
-const mongoose_1 = __importDefault(require("mongoose"));
+const mongoose_2 = __importDefault(require("mongoose"));
 const purchase_schema_1 = __importDefault(require("./purchase.schema"));
 const product_schema_1 = __importDefault(require("../product/product.schema"));
 const vendor_schema_1 = __importDefault(require("../vendor/vendor.schema"));
@@ -51,7 +52,7 @@ async function resolveVendor(payload, company_id, createdBy, session) {
     // vendor_id provided → find existing
     if (payload.vendor_id) {
         const vendor = await vendor_schema_1.default.findOne({
-            _id: new mongoose_1.default.Types.ObjectId(payload.vendor_id),
+            _id: new mongoose_2.default.Types.ObjectId(payload.vendor_id),
             company_id,
             is_active: true,
         })
@@ -104,7 +105,7 @@ async function bulkUpsertCategories(items, company_id, createdBy, session) {
     const withName = items.filter((i) => !i.categoryId && i.categoryName);
     // 1. load existing categories by id
     if (withId.length > 0) {
-        const ids = withId.map((i) => new mongoose_1.default.Types.ObjectId(i.categoryId));
+        const ids = withId.map((i) => new mongoose_2.default.Types.ObjectId(i.categoryId));
         const existing = await category_schema_1.default.find({
             _id: { $in: ids },
             company_id,
@@ -149,13 +150,13 @@ async function bulkUpsertCategories(items, company_id, createdBy, session) {
     return map;
 }
 // ─── Stage 2: Bulk upsert products ───────────────────────────────────────────
-async function bulkUpsertProducts(items, categoryMap, company_id, createdBy, session) {
+async function bulkUpsertProducts(items, categoryMap, company_id, createdBy, session, vendor) {
     const map = new Map();
     const withId = items.filter((i) => i.productId);
     const withName = items.filter((i) => !i.productId && i.product_name);
     // ── 1. load existing products by id ───────────────────────
     if (withId.length > 0) {
-        const ids = withId.map((i) => new mongoose_1.default.Types.ObjectId(i.productId));
+        const ids = withId.map((i) => new mongoose_2.default.Types.ObjectId(i.productId));
         const existing = await product_schema_1.default.find({
             _id: { $in: ids },
             company_id,
@@ -212,6 +213,7 @@ async function bulkUpsertProducts(items, categoryMap, company_id, createdBy, ses
                     profit: 0,
                     profit_margin: 0,
                     has_variants: true,
+                    vendor_id: vendor._id,
                     stock: 0, // Will be updated from variant aggregation
                     images: i.images ?? [],
                     is_active: true,
@@ -237,7 +239,7 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
     // ── load all existing variants for these products ─────────
     const productIds = [
         ...new Set(items.map((i) => resolveProduct(i)._id.toString())),
-    ].map((id) => new mongoose_1.default.Types.ObjectId(id));
+    ].map((id) => new mongoose_2.default.Types.ObjectId(id));
     const existing = await product_variant_schema_1.default.find({
         company_id,
         product_id: { $in: productIds },
@@ -321,7 +323,7 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
     // ── Sync product aggregated data from variants ────────────
     const affectedProductIds = [
         ...new Set(items.map((i) => resolveProduct(i)._id.toString())),
-    ].map((id) => new mongoose_1.default.Types.ObjectId(id));
+    ].map((id) => new mongoose_2.default.Types.ObjectId(id));
     // ── Sync product aggregated data from variants ────────────
     await Promise.all(affectedProductIds.map(async (productId) => {
         const agg = await product_variant_schema_1.default.aggregate([
@@ -342,20 +344,22 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
                     hasDiscount: {
                         $sum: {
                             $cond: [
-                                { $or: [
+                                {
+                                    $or: [
                                         { $gt: ["$discountValue", 0] },
-                                        { $ne: ["$discountType", null] }
-                                    ] },
+                                        { $ne: ["$discountType", null] },
+                                    ],
+                                },
                                 1,
-                                0
-                            ]
-                        }
-                    }
+                                0,
+                            ],
+                        },
+                    },
                 },
             },
         ]).session(session);
         if (agg.length > 0) {
-            const { totalStock, minPrice, maxPrice, variantCount, hasDiscount, } = agg[0];
+            const { totalStock, minPrice, maxPrice, variantCount, hasDiscount } = agg[0];
             // Update product - ONLY stock and display fields
             await product_schema_1.default.findByIdAndUpdate(productId, {
                 $set: {
@@ -380,7 +384,7 @@ async function bulkUpsertVariants(items, productMap, company_id, session) {
 // ─── Create purchase ──────────────────────────────────────────────────────────
 const createPurchase = async (payload, req) => {
     const { vendor_id, vendorName, vendorEmail, vendorPhone, purchase_date, paid_amount, note, items, company_id, createdBy, } = payload;
-    const session = await mongoose_1.default.startSession();
+    const session = await mongoose_2.default.startSession();
     try {
         let purchase;
         let vendor;
@@ -395,9 +399,7 @@ const createPurchase = async (payload, req) => {
             // ── Stage 1: Categories ──────────────────────────────────────────────
             const categoryMap = await bulkUpsertCategories(items, company_id, createdBy, session);
             // ── Stage 2: Products ────────────────────────────────────────────────
-            const productMap = await bulkUpsertProducts(items, categoryMap, 
-            // vendor._id,
-            company_id, createdBy, session);
+            const productMap = await bulkUpsertProducts(items, categoryMap, company_id, createdBy, session, vendor);
             // ── Stage 3: Variants ────────────────────────────────────────────────
             const variantMap = await bulkUpsertVariants(items, productMap, company_id, session);
             // ── Build resolved line items from maps (zero extra DB calls) ────────
@@ -432,7 +434,7 @@ const createPurchase = async (payload, req) => {
             const total_amount = round2(resolvedItems.reduce((sum, i) => sum + i.total, 0));
             const product_ids = [
                 ...new Set(resolvedItems.map((i) => i.product_id.toString())),
-            ].map((id) => new mongoose_1.default.Types.ObjectId(id));
+            ].map((id) => new mongoose_2.default.Types.ObjectId(id));
             // const purchaseStart = new Date(purchase_date ?? new Date());
             // purchaseStart.setHours(0, 0, 0, 0);
             // const purchaseEnd = new Date(purchaseStart);
@@ -513,7 +515,7 @@ const getPurchases = async (company_id, query) => {
     if (query.search)
         filter.vendor_name = { $regex: query.search, $options: "i" };
     if (query.vendor_id)
-        filter.vendor_id = new mongoose_1.default.Types.ObjectId(query.vendor_id);
+        filter.vendor_id = new mongoose_2.default.Types.ObjectId(query.vendor_id);
     if (query.status)
         filter.status = query.status;
     if (query.from_date || query.to_date) {
@@ -571,7 +573,7 @@ const updatePayment = async (id, company_id, payload, req) => {
     if (payload.paid_amount > remaining_due) {
         throw new appError_1.AppError(`Paid amount (${payload.paid_amount}) cannot exceed total amount (${remaining_due})`, 422);
     }
-    const session = await mongoose_1.default.startSession();
+    const session = await mongoose_2.default.startSession();
     try {
         await session.withTransaction(async () => {
             purchase.paid_amount += payload.paid_amount;
@@ -638,6 +640,152 @@ const deletePurchase = async (id, company_id, req) => {
     });
 };
 exports.deletePurchase = deletePurchase;
+const updateStock = async (req) => {
+    const input = req.body;
+    const companyId = req.user.company_id;
+    const userId = req.user._id;
+    if (!companyId || !userId) {
+        throw new appError_1.AppError("Unauthorized", 403);
+    }
+    const { paidAmount, sellingPrice, buyingPrice, quantity, variantId, purchaseDate, note, } = input;
+    if (!mongoose_1.Types.ObjectId.isValid(variantId)) {
+        throw new appError_1.AppError("Product or variant ID is not found");
+    }
+    const variant = await product_variant_schema_1.default.findOne({
+        company_id: companyId,
+        _id: new mongoose_1.Types.ObjectId(variantId),
+    }).populate("product_id", "vendor_id name");
+    if (!variant) {
+        throw new appError_1.AppError("Product variant not found");
+    }
+    const populatedProduct = variant.product_id;
+    if (!mongoose_1.Types.ObjectId.isValid(populatedProduct.vendor_id)) {
+        throw new appError_1.AppError("Vendor Id is required", 400);
+    }
+    const buying_price = variant.buying_price > buyingPrice ? variant.buying_price : buyingPrice;
+    const selling_price = variant.selling_price > sellingPrice ? variant.selling_price : sellingPrice;
+    const totalPurchase = quantity * buyingPrice;
+    const item = {
+        product_id: variant.product_id,
+        variant_id: variant._id,
+        product_name: populatedProduct.name,
+        sku: variant.sku,
+        color: variant.attributes.find((a) => a.key === "color")?.value ?? "",
+        size: variant.attributes.find((a) => a.key === "size")?.value ?? "",
+        quantity,
+        unit_price: buying_price,
+        selling_price: selling_price,
+        total: totalPurchase,
+    };
+    const session = await mongoose_2.default.startSession();
+    try {
+        session.startTransaction();
+        const updateVariant = await product_variant_schema_1.default.findOneAndUpdate({
+            company_id: companyId,
+            _id: new mongoose_1.Types.ObjectId(variantId),
+        }, [
+            {
+                $set: {
+                    stock: { $add: ["$stock", quantity] },
+                    buying_price,
+                    selling_price,
+                },
+            },
+        ], {
+            session,
+            returnDocument: "after",
+            runValidators: true,
+            updatePipeline: true,
+        });
+        if (!updateVariant) {
+            throw new appError_1.AppError("Failed to update stock this variant");
+        }
+        const updateStockProduct = await product_schema_1.default.findOneAndUpdate({ company_id: companyId, _id: populatedProduct._id }, [
+            {
+                $set: {
+                    stock: { $add: ["$stock", quantity] },
+                    total_stock: { $add: ["$total_stock", quantity] },
+                    display_price_max: {
+                        $cond: {
+                            if: {
+                                $gte: ["$display_price_max", selling_price],
+                            },
+                            then: "$display_price_max",
+                            else: selling_price,
+                        },
+                    },
+                    display_price_min: {
+                        $cond: {
+                            if: { $lte: ["$display_price_min", selling_price] },
+                            then: "$display_price_min",
+                            else: selling_price,
+                        },
+                    },
+                },
+            },
+        ], {
+            session,
+            returnDocument: "after",
+            runValidators: true,
+            updatePipeline: true,
+        });
+        if (!updateStockProduct) {
+            throw new appError_1.AppError("Failed to update variant stock", 400);
+        }
+        const [newPurchase] = await purchase_schema_1.default.create([
+            {
+                company_id: companyId,
+                vendor_id: populatedProduct.vendor_id,
+                items: [item],
+                product_ids: [populatedProduct._id],
+                item_count: 1,
+                total_amount: totalPurchase,
+                paid_amount: paidAmount,
+                purchase_date: purchaseDate ? new Date(purchaseDate) : new Date(),
+                note: note ?? "",
+                createdBy: userId,
+            },
+        ], { session });
+        if (!newPurchase) {
+            throw new appError_1.AppError("Failed to create purchase");
+        }
+        const updateVendor = await vendor_schema_1.default.findOneAndUpdate({
+            company_id: companyId,
+            _id: populatedProduct.vendor_id,
+        }, [
+            {
+                $set: {
+                    total_payable: { $add: ["$total_payable", totalPurchase] },
+                    total_paid: { $add: ["$total_paid", paidAmount] },
+                    due: {
+                        $subtract: [
+                            { $add: ["$total_payable", totalPurchase] },
+                            { $add: ["$total_paid", paidAmount] },
+                        ],
+                    },
+                },
+            },
+        ], {
+            session,
+            returnDocument: "after",
+            runValidators: true,
+            updatePipeline: true,
+        });
+        if (!updateVendor) {
+            throw new appError_1.AppError("Vendor updated failed");
+        }
+        await session.commitTransaction();
+        return updateVariant;
+    }
+    catch (error) {
+        await session.abortTransaction();
+        throw error;
+    }
+    finally {
+        await session.endSession();
+    }
+};
+exports.updateStock = updateStock;
 /*
 interface CreatePurchasePayload extends CreatePurchaseInput {
   company_id: mongoose.Types.ObjectId;

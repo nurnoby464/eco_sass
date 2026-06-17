@@ -45,6 +45,14 @@ export declare const productVariantQuerySchema: z.ZodObject<{
         reminderStock: "reminderStock";
     }>>;
 }, z.core.$strip>;
+export declare const editProductVariantSchema: z.ZodObject<{
+    variantId: z.ZodString;
+    sellingPrice: z.ZodNumber;
+    newImage: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    previousImage: z.ZodString;
+    alertStock: z.ZodOptional<z.ZodNumber>;
+}, z.core.$strip>;
+export type EditProductVariantInput = z.infer<typeof editProductVariantSchema>;
 export type CreateVariantInput = z.infer<typeof createVariantSchema>;
 export type UpdateVariantInput = z.infer<typeof updateVariantSchema>;
 //# sourceMappingURL=product-variant.validation.d.ts.map

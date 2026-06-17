@@ -49,6 +49,9 @@ variantRouter
     .get((0, validate_1.validate)({ params: product_variant_validation_1.variantParamsSchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "inventory", "sales", "report"), ProductVariantController.getVariants)
     .post((0, validate_1.validate)({ params: product_variant_validation_1.variantParamsSchema, body: product_variant_validation_1.createVariantSchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "inventory"), ProductVariantController.createVariant);
 variantRouter
+    .route("/edit")
+    .patch(AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "inventory"), (0, validate_1.validate)({ body: product_variant_validation_1.editProductVariantSchema }), ProductVariantController.editProductVariant);
+variantRouter
     .route("/:variantId")
     .get((0, validate_1.validate)({ params: product_variant_validation_1.productVariantParamsSchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "inventory", "sales", "report"), ProductVariantController.getVariantById)
     .patch((0, validate_1.validate)({ params: product_variant_validation_1.productVariantParamsSchema, body: product_variant_validation_1.updateVariantSchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "inventory"), ProductVariantController.updateVariant)

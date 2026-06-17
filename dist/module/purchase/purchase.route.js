@@ -47,6 +47,9 @@ router
     .route("/")
     .get((0, validate_1.validate)({ query: purchase_validation_1.purchaseQuerySchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "account"), PurchaseController.getPurchases)
     .post((0, validate_1.validate)({ body: purchase_validation_1.createPurchaseSchema }), AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "account"), PurchaseController.createPurchase);
+router
+    .route("/update-stock")
+    .patch(AuthenticateHelper_1.authenticate, AuthenticateHelper_1.verifySession, (0, guard_1.guard)("super_admin", "admin", "account"), (0, validate_1.validate)({ body: purchase_validation_1.updateStockPurchaseSchema }), PurchaseController.updateStock);
 // ── /api/purchases/:id ────────────────────────────────────
 router
     .route("/:id")

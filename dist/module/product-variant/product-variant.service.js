@@ -36,15 +36,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllProductWithVariant = exports.deleteVariant = exports.updateVariant = exports.getVariantById = exports.getVariants = exports.createVariant = void 0;
+exports.editProductVariant = exports.getAllProductWithVariant = exports.deleteVariant = exports.updateVariant = exports.getVariantById = exports.getVariants = exports.createVariant = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const product_schema_1 = __importDefault(require("../product/product.schema"));
 const product_variant_schema_1 = __importDefault(require("../product-variant/product-variant.schema"));
-const appError_1 = require("../../middlewares/appError");
 const auditLogger_1 = require("../../utils/auditLogger");
 const audit_interface_1 = require("../audit/audit.interface");
 const sanitizeData_1 = require("../../utils/sanitizeData");
 const useSkip_1 = require("../../utils/useSkip");
+const appError_1 = require("../../middlewares/appError");
 const createVariant = async (payload, req) => {
     const { product_id, company_id, ...rest } = payload;
     // product must exist, belong to company, and have has_variants = true
@@ -345,4 +345,82 @@ const getAllProductWithVariant = async (payload) => {
     return { data, total, query };
 };
 exports.getAllProductWithVariant = getAllProductWithVariant;
+const editProductVariant = async (req) => {
+    const input = req.body;
+    const companyId = req.user.company_id;
+    const userId = req.user._id;
+    if (!companyId) {
+        throw new appError_1.AppError("CompanyId not found", 400);
+    }
+    const { variantId, sellingPrice, newImage, previousImage, alertStock } = input;
+    const existing = await product_variant_schema_1.default.findOne({
+        company_id: companyId,
+        _id: new mongoose_1.Types.ObjectId(variantId),
+    });
+    if (!existing) {
+        throw new appError_1.AppError("Product variant not found");
+    }
+    const session = await mongoose_1.default.startSession();
+    try {
+        session.startTransaction();
+        const updateVariant = await product_variant_schema_1.default.findOneAndUpdate({
+            company_id: companyId,
+            _id: existing._id,
+        }, {
+            $set: {
+                selling_price: sellingPrice ? sellingPrice : existing.selling_price,
+                low_stock_alert: alertStock ? alertStock : existing.low_stock_alert,
+                image: newImage ? newImage : existing.image,
+            },
+        }, { session, returnDocument: "after", runValidators: true });
+        if (!updateVariant) {
+            throw new appError_1.AppError("Failed to edit product variant");
+        }
+        const editProduct = await product_schema_1.default.findOneAndUpdate({ company_id: companyId, _id: existing.product_id }, [
+            {
+                $set: {
+                    ...(newImage && {
+                        images: {
+                            $concatArrays: [
+                                {
+                                    $filter: {
+                                        input: "$images",
+                                        as: "img",
+                                        cond: { $ne: ["$$img", existing.image] },
+                                    },
+                                },
+                                [newImage],
+                            ],
+                        },
+                    }),
+                    display_price_max: {
+                        $cond: {
+                            if: { $gte: ["$display_price_max", sellingPrice] },
+                            then: "$display_price_max",
+                            else: sellingPrice,
+                        },
+                    },
+                    display_price_min: {
+                        $min: ["$display_price_min", sellingPrice],
+                    },
+                },
+            },
+        ], {
+            session,
+            returnDocument: "after",
+            runValidators: true,
+            updatePipeline: true,
+        });
+        await session.commitTransaction();
+        return updateVariant;
+    }
+    catch (error) {
+        await session.abortTransaction();
+        throw error;
+    }
+    finally {
+        await session.endSession();
+    }
+};
+exports.editProductVariant = editProductVariant;
 //# sourceMappingURL=product-variant.service.js.map

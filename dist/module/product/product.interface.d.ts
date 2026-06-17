@@ -3,6 +3,7 @@ import { Document } from "mongoose";
 export interface IProduct {
     company_id: mongoose.Types.ObjectId;
     category_id: mongoose.Types.ObjectId;
+    vendor_id: mongoose.Types.ObjectId;
     name: string;
     slug: string;
     description: string | null;

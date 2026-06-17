@@ -6,22 +6,26 @@ const mongoId = z
   .trim()
   .regex(/^[a-f\d]{24}$/i, "Invalid ObjectId");
 
-  // helper — reuse for all optional mongoId fields
+// helper — reuse for all optional mongoId fields
 const optionalEmail = z
-  .string().email("Invalid email").trim()
+  .string()
+  .email("Invalid email")
+  .trim()
   .optional()
   .or(z.literal("").transform(() => undefined))
-  .or(z.null().transform(() => undefined))
+  .or(z.null().transform(() => undefined));
 
 const optionalMongoId = mongoId
   .optional()
   .or(z.literal("").transform(() => undefined))
-  .or(z.null().transform(() => undefined))
+  .or(z.null().transform(() => undefined));
 
-const optionalString = z.string().trim()
+const optionalString = z
+  .string()
+  .trim()
   .optional()
   .or(z.literal("").transform(() => undefined))
-  .or(z.null().transform(() => undefined))
+  .or(z.null().transform(() => undefined));
 
 // ─── Create ───────────────────────────────────────────────────────────────────
 
@@ -30,7 +34,7 @@ const purchaseItemSchema = z
     product_name: optionalString,
     productId: optionalMongoId,
     categoryId: optionalMongoId,
-    categoryName:optionalString,
+    categoryName: optionalString,
     color: z.string().trim().min(1, "Color is required"),
     size: z.string().trim().optional().default(""),
     unit_price: z.number({ error: "Unit price is required" }).min(0),
@@ -63,15 +67,15 @@ const purchaseItemSchema = z
 export const createPurchaseSchema = z
   .object({
     vendor_id: optionalMongoId,
-    vendorName:optionalString,
-    vendorPhone:optionalString,
+    vendorName: optionalString,
+    vendorPhone: optionalString,
     vendorEmail: optionalEmail,
     purchase_date: z
       .string()
       .trim()
       .date("Must be a valid date YYYY-MM-DD")
       .optional(),
-   paid_amount: z.coerce.number().min(0).optional().default(0),
+    paid_amount: z.coerce.number().min(0).optional().default(0),
     note: z.string().trim().max(2000).optional(),
     items: z
       .array(purchaseItemSchema)
@@ -94,6 +98,47 @@ export const updatePurchaseSchema = z.object({
   paid_amount: z.number().min(0, "Paid amount must be ≥ 0"),
   note: z.string().trim().max(2000).optional(),
 });
+
+export const updateStockPurchaseSchema = z.object({
+  variantId: z
+    .string({
+      error: "Product ID is required",
+    })
+    .min(1, "Product ID cannot be empty"),
+
+  quantity: z
+    .number({
+      error: "Quantity is required",
+    })
+    .int("Quantity must be an integer")
+    .positive("Quantity must be greater than 0")
+    .max(999999, "Quantity cannot exceed 999,999"),
+
+  sellingPrice: z
+    .number({
+      error: "Selling price is required",
+    })
+    .positive("Selling price must be greater than 0")
+    .min(0.01, "Selling price must be at least 0.01"),
+
+  buyingPrice: z
+    .number({
+      error: "Buying price is required",
+    })
+    .nonnegative("Buying price cannot be negative"),
+
+  paidAmount: z
+    .number({
+      error: "Paid amount is required",
+    })
+    .nonnegative("Paid amount cannot be negative"),
+  purchaseDate: z
+    .string()
+    .datetime({ message: "Invalid date format" })
+    .optional(),
+    note: z.string().trim().max(2000).optional(),
+});
+
 export const purchaseParamsSchema = z.object({ id: mongoId });
 
 export const purchaseQuerySchema = z.object({
@@ -127,3 +172,6 @@ export type CreatePurchaseInput = z.infer<typeof createPurchaseSchema>;
 export type PurchaseItemInput = z.infer<typeof purchaseItemSchema>;
 export type UpdatePurchaseInput = z.infer<typeof updatePurchaseSchema>;
 export type ListPurchaseQuery = z.infer<typeof purchaseQuerySchema>;
+export type UpdateStockPurchaseInput = z.infer<
+  typeof updateStockPurchaseSchema
+>;

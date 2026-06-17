@@ -17,7 +17,7 @@ export const createPurchase = asyncHandler(
       { ...(req.body as CreatePurchaseInput), company_id, createdBy },
       req,
     );
-    
+
     return ApiResponse.created(res, purchase, "Purchase created successfully");
   },
 );
@@ -89,4 +89,10 @@ export const remove = asyncHandler(async (req: Request, res: Response) => {
     req,
   );
   return ApiResponse.success(res, null, "Purchase deleted successfully");
+});
+
+export const updateStock = asyncHandler(async (req: Request, res: Response) => {
+  // const company_id = new mongoose.Types.ObjectId(req.user.company_id!);
+  const result = await PurchaseService.updateStock(req);
+  return ApiResponse.success(res, result, "Purchase deleted successfully");
 });

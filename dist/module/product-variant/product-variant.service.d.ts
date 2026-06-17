@@ -62,5 +62,12 @@ export declare const getAllProductWithVariant: (payload: IGetProductVariant) => 
         stock: "lowStock" | "outOfStock" | "reminderStock";
     };
 }>;
+export declare const editProductVariant: (req: Request) => Promise<mongoose.Document<unknown, {}, import("./product-variant.interface").IProductVariantDocument, {}, mongoose.DefaultSchemaOptions> & import("./product-variant.interface").IProductVariantDocument & Required<{
+    _id: Types.ObjectId;
+}> & {
+    __v: number;
+} & {
+    id: string;
+}>;
 export {};
 //# sourceMappingURL=product-variant.service.d.ts.map

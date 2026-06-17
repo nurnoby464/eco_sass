@@ -63,5 +63,25 @@ export const productVariantQuerySchema = z.object({
     .default("createdAt"),
   stock: z.enum(["lowStock", "outOfStock", "reminderStock"]).optional(),
 });
+
+export const editProductVariantSchema = z.object({
+  variantId: mongoId,
+  sellingPrice: z
+    .number({ error: "Selling price is required" })
+    .positive("Selling price must be greater than 0")
+    .min(0.01, "Selling price must be at least 0.01"),
+
+  newImage: z.string().url("Invalid image URL").nullable().optional(),
+  previousImage: z.string().url("Invalid image URL"),
+
+  alertStock: z
+    .number()
+    .int("Alert stock must be an integer")
+    .nonnegative("Alert stock cannot be negative")
+    .max(999999, "Alert stock cannot exceed 999,999")
+    .optional(),
+});
+
+export type EditProductVariantInput = z.infer<typeof editProductVariantSchema>;
 export type CreateVariantInput = z.infer<typeof createVariantSchema>;
 export type UpdateVariantInput = z.infer<typeof updateVariantSchema>;

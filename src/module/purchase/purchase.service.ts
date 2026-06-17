@@ -1,3 +1,4 @@
+import { ObjectId, Types } from "mongoose";
 // src/module/purchase/purchase.service.ts
 import mongoose, { ClientSession } from "mongoose";
 import Purchase from "./purchase.schema";
@@ -9,6 +10,7 @@ import {
   CreatePurchaseInput,
   ListPurchaseQuery,
   UpdatePurchaseInput,
+  UpdateStockPurchaseInput,
 } from "./purchase.validation";
 import { auditLog } from "../../utils/auditLogger";
 import { AUDIT_ACTIONS } from "../audit/audit.interface";
@@ -16,6 +18,7 @@ import { Request } from "express";
 import { sanitizeData } from "../../utils/sanitizeData";
 import Category from "../category/category.schema";
 import { IVendorDocument } from "../vendor/vendor.interface";
+import { IProduct, IProductDocument } from "../product/product.interface";
 
 // Interface types
 
@@ -237,6 +240,7 @@ async function bulkUpsertProducts(
   company_id: mongoose.Types.ObjectId,
   createdBy: mongoose.Types.ObjectId,
   session: ClientSession,
+  vendor: any,
 ): Promise<Map<string, { _id: mongoose.Types.ObjectId; sku: string }>> {
   const map = new Map<string, { _id: mongoose.Types.ObjectId; sku: string }>();
 
@@ -318,12 +322,13 @@ async function bulkUpsertProducts(
             slug: buildSlug(i.product_name!) + "-" + Date.now(),
             sku,
             // ✅ For variant products, these are placeholders (will be updated from variants)
-            buying_price: 0,  // Will be updated from variant aggregation
+            buying_price: 0, // Will be updated from variant aggregation
             selling_price: 0, // Will be updated from variant aggregation
             profit: 0,
             profit_margin: 0,
             has_variants: true,
-            stock: 0,  // Will be updated from variant aggregation
+            vendor_id: vendor._id,
+            stock: 0, // Will be updated from variant aggregation
             images: i.images ?? [],
             is_active: true,
             createdBy,
@@ -349,7 +354,6 @@ async function bulkUpsertVariants(
   company_id: mongoose.Types.ObjectId,
   session: ClientSession,
 ): Promise<Map<string, { _id: mongoose.Types.ObjectId; sku: string }>> {
-  
   const resolveProduct = (item: CreatePurchaseInput["items"][number]) => {
     const product = item.productId
       ? productMap.get(item.productId)
@@ -431,18 +435,19 @@ async function bulkUpsertVariants(
   // ── Update existing variants (increment stock, update prices) ──
   if (toUpdateStock.length > 0) {
     await Promise.all(
-      toUpdateStock.map(({ variantId, quantity, buying_price, selling_price }) =>
-        ProductVariant.findByIdAndUpdate(
-          variantId,
-          {
-            $inc: { stock: quantity },
-            $set: {
-              buying_price: buying_price,
-              selling_price: selling_price,
+      toUpdateStock.map(
+        ({ variantId, quantity, buying_price, selling_price }) =>
+          ProductVariant.findByIdAndUpdate(
+            variantId,
+            {
+              $inc: { stock: quantity },
+              $set: {
+                buying_price: buying_price,
+                selling_price: selling_price,
+              },
             },
-          },
-          { session },
-        ),
+            { session },
+          ),
       ),
     );
   }
@@ -494,74 +499,71 @@ async function bulkUpsertVariants(
     ...new Set(items.map((i) => resolveProduct(i)._id.toString())),
   ].map((id) => new mongoose.Types.ObjectId(id));
 
- // ── Sync product aggregated data from variants ────────────
-await Promise.all(
-  affectedProductIds.map(async (productId) => {
-    const agg = await ProductVariant.aggregate([
-      {
-        $match: {
-          product_id: productId,
-          company_id,
-          is_active: true,
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalStock: { $sum: "$stock" },
-          minPrice: { $min: "$selling_price" },
-          maxPrice: { $max: "$selling_price" },
-          variantCount: { $sum: 1 },
-          hasDiscount: {
-            $sum: {
-              $cond: [
-                { $or: [
-                  { $gt: ["$discountValue", 0] },
-                  { $ne: ["$discountType", null] }
-                ]},
-                1,
-                0
-              ]
-            }
-          }
-        },
-      },
-    ]).session(session);
-
-    if (agg.length > 0) {
-      const {
-        totalStock,
-        minPrice,
-        maxPrice,
-        variantCount,
-        hasDiscount,
-      } = agg[0];
-
-      // Update product - ONLY stock and display fields
-      await Product.findByIdAndUpdate(
-        productId,
+  // ── Sync product aggregated data from variants ────────────
+  await Promise.all(
+    affectedProductIds.map(async (productId) => {
+      const agg = await ProductVariant.aggregate([
         {
-          $set: {
-            // For variant products, these should be 0
-            stock: totalStock,
-            buying_price: 0,      // ✅ Not used, set to 0
-            selling_price: 0,     // ✅ Not used, set to 0
-            profit: 0,
-            profit_margin: 0,
-            
-            // Display-only derived fields
-            display_price_min: minPrice,
-            display_price_max: maxPrice,
-            total_stock: totalStock,
-            variant_count: variantCount,
-            has_discount: hasDiscount > 0,
+          $match: {
+            product_id: productId,
+            company_id,
+            is_active: true,
           },
         },
-        { session },
-      );
-    }
-  }),
-);
+        {
+          $group: {
+            _id: null,
+            totalStock: { $sum: "$stock" },
+            minPrice: { $min: "$selling_price" },
+            maxPrice: { $max: "$selling_price" },
+            variantCount: { $sum: 1 },
+            hasDiscount: {
+              $sum: {
+                $cond: [
+                  {
+                    $or: [
+                      { $gt: ["$discountValue", 0] },
+                      { $ne: ["$discountType", null] },
+                    ],
+                  },
+                  1,
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ]).session(session);
+
+      if (agg.length > 0) {
+        const { totalStock, minPrice, maxPrice, variantCount, hasDiscount } =
+          agg[0];
+
+        // Update product - ONLY stock and display fields
+        await Product.findByIdAndUpdate(
+          productId,
+          {
+            $set: {
+              // For variant products, these should be 0
+              stock: totalStock,
+              buying_price: 0, // ✅ Not used, set to 0
+              selling_price: 0, // ✅ Not used, set to 0
+              profit: 0,
+              profit_margin: 0,
+
+              // Display-only derived fields
+              display_price_min: minPrice,
+              display_price_max: maxPrice,
+              total_stock: totalStock,
+              variant_count: variantCount,
+              has_discount: hasDiscount > 0,
+            },
+          },
+          { session },
+        );
+      }
+    }),
+  );
 
   return map;
 }
@@ -616,10 +618,10 @@ export const createPurchase = async (
       const productMap = await bulkUpsertProducts(
         items,
         categoryMap,
-        // vendor._id,
         company_id,
         createdBy,
         session,
+        vendor,
       );
 
       // ── Stage 3: Variants ────────────────────────────────────────────────
@@ -935,6 +937,193 @@ export const deletePurchase = async (
     targetId: purchase._id,
     before,
   });
+};
+
+interface PurchaseItemSnapshot {
+  product_id: Types.ObjectId;
+  variant_id: Types.ObjectId;
+  product_name: string;
+  sku: string;
+  color: string;
+  size: string;
+  quantity: number;
+  unit_price: number;
+  selling_price: number;
+  total: number;
+}
+
+export const updateStock = async (req: Request) => {
+  const input = req.body as UpdateStockPurchaseInput;
+  const companyId = req.user.company_id;
+  const userId = req.user._id;
+  if (!companyId || !userId) {
+    throw new AppError("Unauthorized", 403);
+  }
+  const {
+    paidAmount,
+    sellingPrice,
+    buyingPrice,
+    quantity,
+    variantId,
+    purchaseDate,
+    note,
+  } = input;
+  if (!Types.ObjectId.isValid(variantId)) {
+    throw new AppError("Product or variant ID is not found");
+  }
+  const variant = await ProductVariant.findOne({
+    company_id: companyId,
+    _id: new Types.ObjectId(variantId),
+  }).populate("product_id", "vendor_id name");
+  if (!variant) {
+    throw new AppError("Product variant not found");
+  }
+
+  const populatedProduct = variant.product_id as unknown as IProductDocument;
+  if (!Types.ObjectId.isValid(populatedProduct.vendor_id)) {
+    throw new AppError("Vendor Id is required", 400);
+  }
+
+  const buying_price =
+    variant.buying_price > buyingPrice ? variant.buying_price : buyingPrice;
+  const selling_price =
+    variant.selling_price > sellingPrice ? variant.selling_price : sellingPrice;
+  const totalPurchase = quantity * buyingPrice;
+
+  const item: PurchaseItemSnapshot = {
+    product_id: variant.product_id as Types.ObjectId,
+    variant_id: variant._id as Types.ObjectId,
+    product_name: populatedProduct.name,
+    sku: variant.sku,
+    color: variant.attributes.find((a) => a.key === "color")?.value ?? "",
+    size: variant.attributes.find((a) => a.key === "size")?.value ?? "",
+    quantity,
+    unit_price: buying_price,
+    selling_price: selling_price,
+    total: totalPurchase,
+  };
+
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+    const updateVariant = await ProductVariant.findOneAndUpdate(
+      {
+        company_id: companyId,
+        _id: new Types.ObjectId(variantId),
+      },
+      [
+        {
+          $set: {
+            stock: { $add: ["$stock", quantity] },
+            buying_price,
+            selling_price,
+          },
+        },
+      ],
+      {
+        session,
+        returnDocument: "after",
+        runValidators: true,
+        updatePipeline: true,
+      },
+    );
+    if (!updateVariant) {
+      throw new AppError("Failed to update stock this variant");
+    }
+    const updateStockProduct = await Product.findOneAndUpdate(
+      { company_id: companyId, _id: populatedProduct._id },
+      [
+        {
+          $set: {
+            stock: { $add: ["$stock", quantity] },
+            total_stock: { $add: ["$total_stock", quantity] },
+            display_price_max: {
+              $cond: {
+                if: {
+                  $gte: ["$display_price_max", selling_price],
+                },
+                then: "$display_price_max",
+                else: selling_price,
+              },
+            },
+            display_price_min: {
+              $cond: {
+                if: { $lte: ["$display_price_min", selling_price] },
+                then: "$display_price_min",
+                else: selling_price,
+              },
+            },
+          },
+        },
+      ],
+      {
+        session,
+        returnDocument: "after",
+        runValidators: true,
+        updatePipeline: true,
+      },
+    );
+    if (!updateStockProduct) {
+      throw new AppError("Failed to update variant stock", 400);
+    }
+    const [newPurchase] = await Purchase.create(
+      [
+        {
+          company_id: companyId,
+          vendor_id: populatedProduct.vendor_id,
+          items: [item],
+          product_ids: [populatedProduct._id],
+          item_count: 1,
+          total_amount: totalPurchase,
+          paid_amount: paidAmount,
+          purchase_date: purchaseDate ? new Date(purchaseDate) : new Date(),
+          note: note ?? "",
+          createdBy: userId,
+        },
+      ],
+      { session },
+    );
+    if (!newPurchase) {
+      throw new AppError("Failed to create purchase");
+    }
+
+    const updateVendor = await Vendor.findOneAndUpdate(
+      {
+        company_id: companyId,
+        _id: populatedProduct.vendor_id,
+      },
+      [
+        {
+          $set: {
+            total_payable: { $add: ["$total_payable", totalPurchase] },
+            total_paid: { $add: ["$total_paid", paidAmount] },
+            due: {
+              $subtract: [
+                { $add: ["$total_payable", totalPurchase] },
+                { $add: ["$total_paid", paidAmount] },
+              ],
+            },
+          },
+        },
+      ],
+      {
+        session,
+        returnDocument: "after",
+        runValidators: true,
+        updatePipeline: true,
+      },
+    );
+    if (!updateVendor) {
+      throw new AppError("Vendor updated failed");
+    }
+    await session.commitTransaction();
+    return updateVariant;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    await session.endSession();
+  }
 };
 
 /*

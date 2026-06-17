@@ -38,6 +38,15 @@ export declare const updatePurchaseSchema: z.ZodObject<{
     paid_amount: z.ZodNumber;
     note: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
+export declare const updateStockPurchaseSchema: z.ZodObject<{
+    variantId: z.ZodString;
+    quantity: z.ZodNumber;
+    sellingPrice: z.ZodNumber;
+    buyingPrice: z.ZodNumber;
+    paidAmount: z.ZodNumber;
+    purchaseDate: z.ZodOptional<z.ZodString>;
+    note: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
 export declare const purchaseParamsSchema: z.ZodObject<{
     id: z.ZodString;
 }, z.core.$strip>;
@@ -68,5 +77,6 @@ export type CreatePurchaseInput = z.infer<typeof createPurchaseSchema>;
 export type PurchaseItemInput = z.infer<typeof purchaseItemSchema>;
 export type UpdatePurchaseInput = z.infer<typeof updatePurchaseSchema>;
 export type ListPurchaseQuery = z.infer<typeof purchaseQuerySchema>;
+export type UpdateStockPurchaseInput = z.infer<typeof updateStockPurchaseSchema>;
 export {};
 //# sourceMappingURL=purchase.validation.d.ts.map
