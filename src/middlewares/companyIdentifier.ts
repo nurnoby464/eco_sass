@@ -9,7 +9,8 @@ export const companyIdentifier = async (
 ) => {
   let company = null;
   const subdomain = req.headers["x-subdomain"] as string | undefined;
-
+    console.log("========== COMPANY DEBUG ==========");
+  console.log("headers", req.headers);
   if (subdomain) {
     company = await Company.findOne({
       subdomain: subdomain.toLocaleLowerCase().trim(),
@@ -58,7 +59,7 @@ export const companyIdentifier = async (
       ),
     );
   }
-  // console.log("company", company);
+  console.log("company", company);
   req.company = company;
   next();
 };
