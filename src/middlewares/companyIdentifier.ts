@@ -55,6 +55,7 @@ export const companyIdentifier = async (
         new AppError("Company not found. Please check your subdomain, domain or company ID.", 404)
     )
   }
+  console.log("company",company)
   req.company = company;
   next();
 };
