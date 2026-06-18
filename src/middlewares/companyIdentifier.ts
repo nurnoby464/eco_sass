@@ -40,6 +40,7 @@ export const companyIdentifier = async (
 
   if (!company && req.headers.origin) {
     const origin = req.headers.origin;
+    res.json({"origin":origin});
     const domain = origin
       .replace(/^https?:\/\//, "") // "rubban.com"
       .replace(/:\d+$/, "") // remove port (localhost:3000 → localhost)

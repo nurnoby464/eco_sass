@@ -36,6 +36,7 @@ const companyIdentifier = async (req, res, next) => {
     }
     if (!company && req.headers.origin) {
         const origin = req.headers.origin;
+        res.json({ "origin": origin });
         const domain = origin
             .replace(/^https?:\/\//, "") // "rubban.com"
             .replace(/:\d+$/, "") // remove port (localhost:3000 → localhost)
@@ -49,6 +50,7 @@ const companyIdentifier = async (req, res, next) => {
     if (!company) {
         return next(new appError_1.AppError("Company not found. Please check your subdomain, domain or company ID.", 404));
     }
+    console.log("company", company);
     req.company = company;
     next();
 };
