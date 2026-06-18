@@ -6,10 +6,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.companyIdentifier = void 0;
 const company_schema_1 = __importDefault(require("../module/company/company.schema"));
 const appError_1 = require("./appError");
+const mongoose_1 = __importDefault(require("mongoose"));
 const companyIdentifier = async (req, res, next) => {
     let company = null;
     const subdomain = req.headers["x-subdomain"];
+    const headerCompanyId = req.headers["x-company-id"];
+    console.log("dubbing ---------------------------------");
+    console.log(headerCompanyId);
     console.log("origin", req.headers.origin);
+    console.log("company before subdomain", company);
     if (subdomain) {
         company = await company_schema_1.default.findOne({
             subdomain: subdomain.toLocaleLowerCase().trim(),
@@ -18,9 +23,16 @@ const companyIdentifier = async (req, res, next) => {
             .select("_id company_name logo subdomain domain status")
             .lean();
     }
+    console.log("company after subdomain", company);
     if (!company) {
+        console.log("in !company");
         const companyId = req.headers["x-company-id"];
-        if (companyId) {
+        console.log("companyId", companyId);
+        console.log("companyId value:", companyId);
+        console.log("companyId type:", typeof companyId);
+        console.log("check valid or not");
+        if (companyId && mongoose_1.default.Types.ObjectId.isValid(companyId)) {
+            console.log("in company id if");
             company = await company_schema_1.default.findOne({ _id: companyId, status: "active" })
                 .select("_id company_name logo subdomain domain status")
                 .lean();
@@ -54,6 +66,7 @@ const companyIdentifier = async (req, res, next) => {
         return next(new appError_1.AppError("Company not found. Please check your subdomain, domain or company ID.", 404));
     }
     console.log("company", company);
+    console.log("dubbing ---------------------------------");
     req.company = company;
     next();
 };

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import Company from "../module/company/company.schema";
 import { AppError } from "./appError";
+import mongoose from 'mongoose';
 
 export const companyIdentifier = async (
   req: Request,
@@ -9,7 +10,11 @@ export const companyIdentifier = async (
 ) => {
   let company = null;
   const subdomain = req.headers["x-subdomain"] as string | undefined;
+  const headerCompanyId = req.headers["x-company-id"];
+  console.log("dubbing ---------------------------------");
+  console.log(headerCompanyId);
   console.log("origin", req.headers.origin);
+  console.log("company before subdomain", company);
 
   if (subdomain) {
     company = await Company.findOne({
@@ -19,9 +24,16 @@ export const companyIdentifier = async (
       .select("_id company_name logo subdomain domain status")
       .lean<any>();
   }
+  console.log("company after subdomain", company);
   if (!company) {
+    console.log("in !company");
     const companyId = req.headers["x-company-id"] as string | undefined;
-    if (companyId) {
+    console.log("companyId", companyId);
+    console.log("companyId value:", companyId);
+    console.log("companyId type:", typeof companyId);
+    console.log("check valid or not",)
+    if (companyId && mongoose.Types.ObjectId.isValid(companyId)) {
+      console.log("in company id if");
       company = await Company.findOne({ _id: companyId, status: "active" })
         .select("_id company_name logo subdomain domain status")
         .lean<any>();
@@ -62,6 +74,7 @@ export const companyIdentifier = async (
     );
   }
   console.log("company", company);
+  console.log("dubbing ---------------------------------");
   req.company = company;
   next();
 };
