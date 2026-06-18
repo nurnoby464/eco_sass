@@ -27,11 +27,16 @@ const deleteUser = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
 });
 const getMyCompany = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const companyId = req.company?._id;
+    const header = req.headers;
     if (!companyId) {
         return ApiResponse_1.ApiResponse.error(res, "Company is required");
     }
     const result = await company_service_1.CompanyServices.getMyCompany(companyId);
-    return ApiResponse_1.ApiResponse.success(res, result, "My company info fetch successfully");
+    const data = {
+        result,
+        header,
+    };
+    return ApiResponse_1.ApiResponse.success(res, data, "My company info fetch successfully");
 });
 const updateMyCompany = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const companyId = req.user.company_id;

@@ -8,7 +8,6 @@ const company_schema_1 = __importDefault(require("../module/company/company.sche
 const appError_1 = require("./appError");
 const companyIdentifier = async (req, res, next) => {
     let company = null;
-    res.send(req);
     const subdomain = req.headers["x-subdomain"];
     if (subdomain) {
         company = await company_schema_1.default.findOne({
@@ -51,7 +50,7 @@ const companyIdentifier = async (req, res, next) => {
     if (!company) {
         return next(new appError_1.AppError("Company not found. Please check your subdomain, domain or company ID.", 404));
     }
-    console.log("company", company);
+    // console.log("company", company);
     req.company = company;
     next();
 };
