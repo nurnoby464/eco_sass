@@ -17,7 +17,7 @@ import { CompanyControllers } from "./company.controller";
 import { companyIdentifier } from "../../middlewares/companyIdentifier";
 
 const router = express.Router();
-router.get("/my-company", companyIdentifier, CompanyControllers.getMyCompany);
+router.get("/my-company", CompanyControllers.getMyCompany);
 router.use(authenticate);
 router.use(verifySession);
 router.post(
