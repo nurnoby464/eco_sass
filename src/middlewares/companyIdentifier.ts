@@ -9,8 +9,10 @@ export const companyIdentifier = async (
 ) => {
   let company = null;
   const subdomain = req.headers["x-subdomain"] as string | undefined;
-    console.log("========== COMPANY DEBUG ==========");
+  console.log("========== COMPANY DEBUG ==========");
+  console.log("origin", req.headers.origin);
   console.log("headers", req.headers);
+
   if (subdomain) {
     company = await Company.findOne({
       subdomain: subdomain.toLocaleLowerCase().trim(),
@@ -39,17 +41,19 @@ export const companyIdentifier = async (
   }
 
   if (!company && req.headers.origin) {
+    console.log("in origin block");
     const origin = req.headers.origin;
-    // res.json({"origin":origin});
     const domain = origin
       .replace(/^https?:\/\//, "") // "rubban.com"
       .replace(/:\d+$/, "") // remove port (localhost:3000 → localhost)
       .toLowerCase();
+    console.log("domain", domain);
     if (domain && domain !== "localhost") {
       company = await Company.findOne({ domain, status: "active" })
         .select("_id company_name logo subdomain domain status")
         .lean<any>();
     }
+    console.log("company with domain filter", company);
   }
   if (!company) {
     return next(

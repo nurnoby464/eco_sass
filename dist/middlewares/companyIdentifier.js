@@ -10,6 +10,7 @@ const companyIdentifier = async (req, res, next) => {
     let company = null;
     const subdomain = req.headers["x-subdomain"];
     console.log("========== COMPANY DEBUG ==========");
+    console.log("origin", req.headers.origin);
     console.log("headers", req.headers);
     if (subdomain) {
         company = await company_schema_1.default.findOne({
@@ -37,17 +38,19 @@ const companyIdentifier = async (req, res, next) => {
             .lean();
     }
     if (!company && req.headers.origin) {
+        console.log("in origin block");
         const origin = req.headers.origin;
-        // res.json({"origin":origin});
         const domain = origin
             .replace(/^https?:\/\//, "") // "rubban.com"
             .replace(/:\d+$/, "") // remove port (localhost:3000 → localhost)
             .toLowerCase();
+        console.log("domain", domain);
         if (domain && domain !== "localhost") {
             company = await company_schema_1.default.findOne({ domain, status: "active" })
                 .select("_id company_name logo subdomain domain status")
                 .lean();
         }
+        console.log("company with domain filter", company);
     }
     if (!company) {
         return next(new appError_1.AppError("Company not found. Please check your subdomain, domain or company ID.", 404));
