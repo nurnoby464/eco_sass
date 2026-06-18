@@ -8,7 +8,7 @@ export const companyIdentifier = async (
   next: NextFunction,
 ) => {
   let company = null;
-
+  res.send(req);
   const subdomain = req.headers["x-subdomain"] as string | undefined;
 
   if (subdomain) {
@@ -26,7 +26,7 @@ export const companyIdentifier = async (
         .select("_id company_name logo subdomain domain status")
         .lean<any>();
     }
-    console.log("companyId in req.headers",companyId)
+    console.log("companyId in req.headers", companyId);
   }
 
   if (!company && req.params.company_id) {
@@ -40,7 +40,7 @@ export const companyIdentifier = async (
 
   if (!company && req.headers.origin) {
     const origin = req.headers.origin;
-    res.json({"origin":origin});
+    // res.json({"origin":origin});
     const domain = origin
       .replace(/^https?:\/\//, "") // "rubban.com"
       .replace(/:\d+$/, "") // remove port (localhost:3000 → localhost)
@@ -51,12 +51,15 @@ export const companyIdentifier = async (
         .lean<any>();
     }
   }
-  if(!company){
+  if (!company) {
     return next(
-        new AppError("Company not found. Please check your subdomain, domain or company ID.", 404)
-    )
+      new AppError(
+        "Company not found. Please check your subdomain, domain or company ID.",
+        404,
+      ),
+    );
   }
-  console.log("company",company)
+  console.log("company", company);
   req.company = company;
   next();
 };

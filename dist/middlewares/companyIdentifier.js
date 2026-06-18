@@ -8,6 +8,7 @@ const company_schema_1 = __importDefault(require("../module/company/company.sche
 const appError_1 = require("./appError");
 const companyIdentifier = async (req, res, next) => {
     let company = null;
+    res.send(req);
     const subdomain = req.headers["x-subdomain"];
     if (subdomain) {
         company = await company_schema_1.default.findOne({
@@ -36,7 +37,7 @@ const companyIdentifier = async (req, res, next) => {
     }
     if (!company && req.headers.origin) {
         const origin = req.headers.origin;
-        res.json({ "origin": origin });
+        // res.json({"origin":origin});
         const domain = origin
             .replace(/^https?:\/\//, "") // "rubban.com"
             .replace(/:\d+$/, "") // remove port (localhost:3000 → localhost)
