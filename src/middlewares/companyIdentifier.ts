@@ -8,7 +8,6 @@ export const companyIdentifier = async (
   next: NextFunction,
 ) => {
   let company = null;
-  res.send(req);
   const subdomain = req.headers["x-subdomain"] as string | undefined;
 
   if (subdomain) {
@@ -59,7 +58,7 @@ export const companyIdentifier = async (
       ),
     );
   }
-  console.log("company", company);
+  // console.log("company", company);
   req.company = company;
   next();
 };

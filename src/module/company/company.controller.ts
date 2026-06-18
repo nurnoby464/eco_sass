@@ -51,6 +51,9 @@ const deleteUser: express.RequestHandler = asyncHandler(async (req, res) => {
 });
 
 const getMyCompany: express.RequestHandler = asyncHandler(async (req, res) => {
+  if (req.headers) {
+    return ApiResponse.success(res, req.headers,"testing ");
+  }
   const companyId = req.company?._id;
   if (!companyId) {
     return ApiResponse.error(res, "Company is required");
@@ -77,8 +80,8 @@ const updateMyCompany: express.RequestHandler = asyncHandler(
 const updateSocialMedia: express.RequestHandler = asyncHandler(
   async (req, res) => {
     const companyId = req.user.company_id;
-    if(!companyId){
-      return ApiResponse.error(res,"Failed, Company id is required")
+    if (!companyId) {
+      return ApiResponse.error(res, "Failed, Company id is required");
     }
     const data = req.body as UpdateSocialMediaInput;
 
