@@ -52,16 +52,11 @@ const deleteUser: express.RequestHandler = asyncHandler(async (req, res) => {
 
 const getMyCompany: express.RequestHandler = asyncHandler(async (req, res) => {
   const companyId = req.company?._id;
-  const header = req.headers;
   if (!companyId) {
     return ApiResponse.error(res, "Company is required");
   }
   const result = await CompanyServices.getMyCompany(companyId);
-  const data = {
-    result,
-    header,
-  };
-  return ApiResponse.success(res, data, "My company info fetch successfully");
+  return ApiResponse.success(res, result, "My company info fetch successfully");
 });
 
 const updateMyCompany: express.RequestHandler = asyncHandler(
